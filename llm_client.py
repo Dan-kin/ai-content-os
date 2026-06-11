@@ -61,8 +61,10 @@ def _run_openai(prompt, cfg, timeout):
     env = cfg['env'] or os.environ
     api_key = cfg['api_key'] or env.get(cfg['api_key_env']) or ''
     if not api_key:
-        raise RuntimeError('缺少 API key：请设置 %s 或 data/llm.json'
-                           % cfg['api_key_env'])
+        raise RuntimeError(
+            '缺少 API key：请在启动 server.py 的同一个终端设置 %s，'
+            '或在 data/llm.json 里为该任务填写 api_key'
+            % cfg['api_key_env'])
     if not cfg['model']:
         raise RuntimeError('provider=openai 需要配置 model')
 

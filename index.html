@@ -484,7 +484,18 @@
       <div class="rewrite-options">
         <label><input type="checkbox" id="imageInsertSlots" checked> 生成带图片占位的新稿</label>
       </div>
-      <textarea id="imageInstructions" placeholder="写下配图方向，例如：不要赛博风，多用真实职场场景；封面要适合公众号传播；图片里不要出现文字、logo 或夸张表情。"></textarea>
+      <div class="modal-help">常用配图方向，可多选：</div>
+      <div class="rewrite-options">
+        <label><input type="checkbox" name="imagePreset" value="整体风格真实、克制、像公众号深度文章配图，不要廉价科技感。" checked> 真实克制</label>
+        <label><input type="checkbox" name="imagePreset" value="优先使用真实职场、办公桌、会议、便签、电脑屏幕、人物背影等场景。" checked> 职场场景</label>
+        <label><input type="checkbox" name="imagePreset" value="适合观点文，用清晰的视觉隐喻表达抽象概念，但不要过度玄幻。"> 视觉隐喻</label>
+        <label><input type="checkbox" name="imagePreset" value="封面图要有传播感，主题明确，适合微信公众号首图。"> 封面传播</label>
+        <label><input type="checkbox" name="imagePreset" value="图片内不要出现文字、logo、水印、真实品牌和夸张表情。" checked> 不要文字 logo</label>
+        <label><input type="checkbox" name="imagePreset" value="避免赛博朋克、蓝紫霓虹、机器人脸、漂浮数据流、过度科幻风。"> 避免赛博风</label>
+        <label><input type="checkbox" name="imagePreset" value="尽量给出可以生成信息图、流程图、对比图或清单图的 prompt。"> 信息图/清单</label>
+        <label><input type="checkbox" name="imagePreset" value="人物不要露脸，避免生成具体公众人物或看起来像真实名人的肖像。"> 人物不露脸</label>
+      </div>
+      <textarea id="imageInstructions" placeholder="其他补充，例如：这篇文章想强调“判断力比工具熟练度更重要”；封面希望更像《人物》或商业杂志；图片要偏暖色，不要暗黑。"></textarea>
       <div class="modal-actions">
         <button class="btn" onclick="hideImageModal()">取消</button>
         <button class="btn btn-primary" id="imageSubmitBtn" onclick="makeImagePlan()">生成配图方案</button>
@@ -827,7 +838,10 @@
       const btn = document.getElementById('imageSubmitBtn');
       if (btn.disabled) return;
       const count = document.getElementById('imageCount').value;
-      const instructions = document.getElementById('imageInstructions').value.trim();
+      const presets = Array.from(document.querySelectorAll('input[name="imagePreset"]:checked'))
+        .map(el => el.value);
+      const customInstructions = document.getElementById('imageInstructions').value.trim();
+      const instructions = presets.concat(customInstructions ? [customInstructions] : []).join('\n');
       const insertPlaceholders = document.getElementById('imageInsertSlots').checked;
       btn.disabled = true;
       btn.textContent = '规划中…';
