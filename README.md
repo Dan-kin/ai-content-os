@@ -40,6 +40,7 @@ AI Content OS 把这些环节装进一个本地系统：信息自动抓取打分
 ### 📝 编辑与发布（index.html）
 - Markdown 编辑 + iPhone 真机尺寸实时预览 + 16 种排版样式（style-manager.html 可管理/新增）
 - **AI 改稿**：按标题、开头、去 AI 味、补例子、增强逻辑、公众号化等方向生成新稿；支持输入读后反馈，不覆盖原稿
+- **AI 配图**：根据文章生成配图位置、图片用途、中英文出图 Prompt 和 Markdown 图片占位；先规划与导出 Prompt，不直接依赖图片模型
 - 一键复制带内联样式的富文本，直接粘贴进公众号编辑器
 - **🚀 一键发布**：调用 [baoyu-post-to-wechat](https://github.com/JimLiu/baoyu-skills) 技能脚本直接存入公众号草稿箱（API / Chrome 浏览器双模式自动选择），**所见即所得**——预览里选的样式就是发出去的样式
 - **🌐 多平台版本**：一键把文章转成知乎长文 / 小红书笔记 / X 推文串，输出新文件不覆盖原稿
@@ -49,7 +50,7 @@ AI Content OS 把这些环节装进一个本地系统：信息自动抓取打分
 - 「AI 复盘」自动分析哪类选题表现好、问题出在哪，给出下一步选题建议
 
 ### 🔌 任务级模型路由（data/llm.json）
-- 写作、改稿、评分、转换、复盘五类任务**各自指定 provider、模型和接口**，互不影响
+- 写作、改稿、配图规划、评分、转换、复盘六类任务**各自指定 provider、模型和接口**，互不影响
 - 支持 `openai` / OpenAI-compatible 接口，也保留 `claude` CLI 作为默认回退
 - 环境变量只注入对应任务，不污染你的交互会话；删掉配置即回退默认 Claude 登录态
 - 自动剥离 LLM 输出开头的寒暄语，保证产物干净
@@ -91,9 +92,9 @@ OpenAI / Codex 推荐配置方式：
 export OPENAI_API_KEY="你的 OpenAI API Key"
 ```
 
-然后在 `data/llm.json` 里把 `write` / `score` / `dist` / `growth`
+然后在 `data/llm.json` 里把 `write` / `rewrite` / `image` / `score` / `dist` / `growth`
 的 `provider` 设为 `openai`，并填入各自模型。`score` 可以用便宜快速的模型，
-`write` / `growth` 建议用质量更高的模型。
+`image` 可以用 DeepSeek 等文本模型先生成配图方案和出图 Prompt，`write` / `growth` 建议用质量更高的模型。
 
 如果你已经登录 Claude Code CLI，也可以删除 `data/llm.json` 或把某个任务设为
 `provider: "claude"`，系统会回退到本机 `claude -p`。
@@ -126,6 +127,7 @@ ai-content-os/
 ├── store.py           # 选题池存储
 ├── knowledge.py       # 知识库（SQLite + 检索 + URL 导入）
 ├── ai_writer.py       # AI 写作（Prompt 组装 + 知识/人设注入）
+├── image_planner.py   # AI 配图规划（位置建议 + 出图 Prompt + 图片占位）
 ├── persona.py         # 人设引擎
 ├── dist.py            # 多平台格式转换（知乎/小红书/X）
 ├── wechat_pub.py      # 公众号一键发布（调技能脚本）

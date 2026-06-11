@@ -21,6 +21,7 @@ import threading
 import ai_writer
 import dist
 import growth
+import image_planner
 import intel
 import intel_rss
 import knowledge
@@ -172,6 +173,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         elif parsed.path == '/api/rewrite/status':
             job_id = (qs.get('job') or [None])[0]
             job = rewriter.get_job(job_id) if job_id else None
+            if job is None:
+                self.send_error(404, "Job not found")
+                return
+            self._json_response(job)
+
+        elif parsed.path == '/api/images/status':
+            job_id = (qs.get('job') or [None])[0]
+            job = image_planner.get_job(job_id) if job_id else None
             if job is None:
                 self.send_error(404, "Job not found")
                 return
@@ -433,6 +442,33 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     return
                 self._json_response({'success': True, 'job': job_id,
                                      'output': rewriter.get_job(job_id)['output']})
+            except Exception as e:
+                self.send_error(500, str(e))
+
+        elif parsed.path == '/api/images/plan':
+            try:
+                data = self._read_json()
+                path = (data.get('file') or '').strip()
+                if not path.startswith('content/') or '..' in path:
+                    self.send_error(400, 'file must be within content/')
+                    return
+                count = (data.get('count') or 'standard').strip()
+                if count not in ('light', 'standard', 'rich'):
+                    count = 'standard'
+                instructions = data.get('instructions') or ''
+                insert_placeholders = data.get('insert_placeholders', True)
+                insert_placeholders = bool(insert_placeholders)
+                try:
+                    job_id = image_planner.start_plan(
+                        path, count=count, instructions=instructions,
+                        insert_placeholders=insert_placeholders)
+                except RuntimeError as e:
+                    self._json_response({'success': False, 'error': str(e)})
+                    return
+                job = image_planner.get_job(job_id)
+                self._json_response({'success': True, 'job': job_id,
+                                     'output': job['output'],
+                                     'prompts': job['prompts']})
             except Exception as e:
                 self.send_error(500, str(e))
 

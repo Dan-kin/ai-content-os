@@ -244,6 +244,41 @@ class Phase2ApiTest(ApiTest):
                                         'platform': 'weibo'})
         self.assertFalse(data['success'])
 
+    def test_image_plan_rejects_path_outside_content(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self._post('/api/images/plan', {'file': 'server.py'})
+        self.assertEqual(ctx.exception.code, 400)
+
+    def test_image_plan_starts_job(self):
+        with open('content/img.md', 'w', encoding='utf-8') as f:
+            f.write('# 配图测试\n\n这是一篇足够长的文章，用来规划公众号配图。')
+        with mock.patch('image_planner.start_plan', return_value='img-test'), \
+             mock.patch('image_planner.get_job',
+                        return_value={'status': 'running',
+                                      'output': 'content/img-images.md',
+                                      'prompts': 'content/img-image-prompts.md',
+                                      'error': ''}) as get_job:
+            data = self._post('/api/images/plan',
+                              {'file': 'content/img.md',
+                               'count': 'light',
+                               'instructions': '真实职场场景',
+                               'insert_placeholders': True})
+        self.assertTrue(data['success'])
+        self.assertEqual(data['job'], 'img-test')
+        self.assertEqual(data['output'], 'content/img-images.md')
+        self.assertEqual(data['prompts'], 'content/img-image-prompts.md')
+        get_job.assert_called_once_with('img-test')
+
+    def test_image_status_returns_job(self):
+        with mock.patch('image_planner.get_job',
+                        return_value={'status': 'done',
+                                      'output': 'content/img-images.md',
+                                      'prompts': 'content/img-image-prompts.md',
+                                      'error': ''}):
+            data = self._get('/api/images/status?job=img-test')
+        self.assertEqual(data['status'], 'done')
+        self.assertEqual(data['prompts'], 'content/img-image-prompts.md')
+
     def test_intel_rss_source_returns_local_items(self):
         import intel_rss
         os.makedirs('data', exist_ok=True)
