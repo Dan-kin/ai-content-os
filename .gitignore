@@ -10,3 +10,4 @@ data/llm.json
 data/knowledge.db
 data/growth.json
 data/publish-*.html
+.superpowers/
