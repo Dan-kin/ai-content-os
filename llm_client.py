@@ -6,12 +6,12 @@ keeps that default path, while allowing OpenAI-compatible HTTP providers from
 """
 import json
 import os
-import ssl
 import subprocess
 import urllib.error
 import urllib.request
 
 import llm_config
+import net
 
 
 def generate_text(task, prompt, timeout=600, fallback_task=None,
@@ -86,8 +86,7 @@ def _run_openai(prompt, cfg, timeout):
         },
         method='POST')
     try:
-        with urllib.request.urlopen(
-                req, timeout=timeout, context=_ssl_context()) as resp:
+        with net.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode('utf-8'))
     except urllib.error.HTTPError as e:
         detail = e.read().decode('utf-8', errors='ignore')[-500:]
@@ -103,17 +102,3 @@ def _run_openai(prompt, cfg, timeout):
     if not text:
         raise RuntimeError('LLM 没有输出')
     return text
-
-
-def _ssl_context():
-    """Return an SSL context that works with python.org macOS builds.
-
-    Some framework Python installs ship without a populated OpenSSL CA file.
-    If certifi is available, use its CA bundle; otherwise fall back to the
-    platform default context.
-    """
-    try:
-        import certifi
-        return ssl.create_default_context(cafile=certifi.where())
-    except Exception:
-        return ssl.create_default_context()

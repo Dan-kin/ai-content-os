@@ -11,6 +11,8 @@ import re
 import sqlite3
 import urllib.request
 
+import net
+
 DB_PATH = 'data/knowledge.db'
 FETCH_TIMEOUT = 20
 UA = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
@@ -126,7 +128,7 @@ class _TextExtractor(html.parser.HTMLParser):
 def import_url(url):
     """抓取网页，提取标题与正文文本入库。返回新条目 id。"""
     req = urllib.request.Request(url, headers={'User-Agent': UA})
-    with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as res:
+    with net.urlopen(req, timeout=FETCH_TIMEOUT) as res:
         raw = res.read()
     text = raw.decode('utf-8', errors='replace')
     parser = _TextExtractor()

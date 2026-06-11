@@ -207,7 +207,7 @@
           : '';
         hint.textContent = '信源：我的 RSS（data/sources.json 可增删源）· '
           + '后台每 30 分钟自动抓取 · 上次抓取：' + last + running
-          + ' · AI 评分由本机 claude（haiku）生成，灰色为待评分' + failNote;
+          + ' · AI 评分由 data/llm.json 的 score 任务生成，灰色为待评分' + failNote;
       } else {
         hint.textContent = '信源：AI HOT（aihot.virxact.com，已含 AI 评分与降噪）'
           + '· 摘要由 LLM 生成，采纳后写作前请回原文核实 · 数据覆盖最近 7 天';

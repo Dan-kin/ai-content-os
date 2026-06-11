@@ -100,7 +100,7 @@ class RefreshTest(TmpDirTest):
 
     def test_refresh_stores_and_dedups(self):
         self._config_one_source()
-        with mock.patch('intel_rss.urllib.request.urlopen',
+        with mock.patch('net.urlopen',
                         return_value=_fake_http(RSS_SAMPLE)):
             result = intel_rss.refresh_all()
         self.assertEqual(result['new'], 2)
@@ -111,7 +111,7 @@ class RefreshTest(TmpDirTest):
         self.assertTrue(items[0]['id'].startswith('rss-'))
 
         # 再抓一次：同样条目不重复入库
-        with mock.patch('intel_rss.urllib.request.urlopen',
+        with mock.patch('net.urlopen',
                         return_value=_fake_http(RSS_SAMPLE)):
             result2 = intel_rss.refresh_all()
         self.assertEqual(result2['new'], 0)
@@ -119,7 +119,7 @@ class RefreshTest(TmpDirTest):
 
     def test_refresh_records_source_error(self):
         self._config_one_source()
-        with mock.patch('intel_rss.urllib.request.urlopen',
+        with mock.patch('net.urlopen',
                         side_effect=OSError('boom')):
             result = intel_rss.refresh_all()
         self.assertEqual(result['new'], 0)
@@ -128,14 +128,14 @@ class RefreshTest(TmpDirTest):
         self.assertIn('s1', intel_rss.status()['last_errors'])
 
         # 下一轮成功后错误清空，不残留旧告警
-        with mock.patch('intel_rss.urllib.request.urlopen',
+        with mock.patch('net.urlopen',
                         return_value=_fake_http(RSS_SAMPLE)):
             intel_rss.refresh_all()
         self.assertEqual(intel_rss.status()['last_errors'], {})
 
     def test_get_items_filters(self):
         self._config_one_source()
-        with mock.patch('intel_rss.urllib.request.urlopen',
+        with mock.patch('net.urlopen',
                         return_value=_fake_http(RSS_SAMPLE)):
             intel_rss.refresh_all()
         hit = intel_rss.get_items(q='第二')
@@ -173,7 +173,7 @@ class ScoreTest(TmpDirTest):
                                     'category': 'industry',
                                     'enabled': True}],
                        'settings': {'auto_score': False}}, f)
-        with mock.patch('intel_rss.urllib.request.urlopen',
+        with mock.patch('net.urlopen',
                         return_value=_fake_http(RSS_SAMPLE)):
             intel_rss.refresh_all()
 

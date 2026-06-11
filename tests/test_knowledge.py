@@ -73,7 +73,7 @@ class KnowledgeTest(unittest.TestCase):
         fake.read.return_value = html.encode('utf-8')
         fake.__enter__ = lambda s: fake
         fake.__exit__ = lambda s, *a: False
-        with mock.patch('knowledge.urllib.request.urlopen',
+        with mock.patch('net.urlopen',
                         return_value=fake):
             kid = knowledge.import_url('https://example.com/a')
         item = knowledge.get(kid)

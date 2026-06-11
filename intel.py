@@ -10,6 +10,7 @@ import time
 import urllib.parse
 import urllib.request
 
+import net
 import store
 
 BASE_URL = 'https://aihot.virxact.com'
@@ -59,7 +60,7 @@ def fetch_items(hours=24, category='', q='', take=50):
         params['q'] = q
     url = BASE_URL + '/api/public/items?' + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={'User-Agent': UA})
-    with urllib.request.urlopen(req, timeout=20) as res:
+    with net.urlopen(req, timeout=20) as res:
         data = json.loads(res.read().decode('utf-8'))
     items = data.get('items', [])
 

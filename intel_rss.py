@@ -19,6 +19,7 @@ import time
 import urllib.request
 
 import llm_client
+import net
 import xml.etree.ElementTree as ET
 
 SOURCES_PATH = 'data/sources.json'
@@ -44,12 +45,12 @@ DEFAULT_SOURCES = [
      'category': 'paper', 'enabled': True},
     {'id': 'ms-ai', 'name': 'Microsoft AI',
      'url': 'https://blogs.microsoft.com/ai/rss/',
-     'category': 'industry', 'enabled': True},
+     'category': 'industry', 'enabled': False},
     {'id': 'techcrunch-ai', 'name': 'TechCrunch AI',
      'url': 'https://techcrunch.com/category/artificial-intelligence/feed/',
      'category': 'industry', 'enabled': True},
     {'id': 'venturebeat-ai', 'name': 'VentureBeat AI',
-     'url': 'https://venturebeat.com/category/ai/feed/',
+     'url': 'https://venturebeat.com/category/ai/feed',
      'category': 'industry', 'enabled': True},
     {'id': 'theverge', 'name': 'The Verge',
      'url': 'https://www.theverge.com/rss/index.xml',
@@ -62,7 +63,7 @@ DEFAULT_SOURCES = [
      'category': 'industry', 'enabled': True},
     {'id': 'geekpark', 'name': '极客公园',
      'url': 'https://www.geekpark.net/rss',
-     'category': 'ai-products', 'enabled': True},
+     'category': 'ai-products', 'enabled': False},
     {'id': 'synced', 'name': '机器之心 Synced',
      'url': 'https://syncedreview.com/feed/',
      'category': 'paper', 'enabled': True},
@@ -189,8 +190,7 @@ def refresh_all():
             try:
                 req = urllib.request.Request(src['url'],
                                              headers={'User-Agent': UA})
-                with urllib.request.urlopen(req,
-                                            timeout=FETCH_TIMEOUT) as res:
+                with net.urlopen(req, timeout=FETCH_TIMEOUT) as res:
                     xml_text = res.read().decode('utf-8', errors='replace')
                 deadline_ts = time.time() - KEEP_DAYS * 86400
                 for entry in _parse_feed(xml_text)[:FEED_LIMIT]:

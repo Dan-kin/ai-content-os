@@ -36,7 +36,7 @@ class FetchTest(unittest.TestCase):
     def test_fetch_uses_browser_ua_and_caches(self):
         payload = {'items': [{'id': 'a1', 'title': 'X', 'url': 'https://x',
                               'score': 80, 'category': 'industry'}]}
-        with mock.patch('intel.urllib.request.urlopen',
+        with mock.patch('net.urlopen',
                         return_value=_fake_response(payload)) as m:
             items, cached = intel.fetch_items(hours=24)
             self.assertFalse(cached)
@@ -46,7 +46,7 @@ class FetchTest(unittest.TestCase):
             self.assertIn('mode=selected', req.full_url)
 
         # 第二次相同参数：走缓存，不再发请求
-        with mock.patch('intel.urllib.request.urlopen') as m2:
+        with mock.patch('net.urlopen') as m2:
             items2, cached2 = intel.fetch_items(hours=24)
             self.assertTrue(cached2)
             self.assertEqual(items2[0]['id'], 'a1')
@@ -55,7 +55,7 @@ class FetchTest(unittest.TestCase):
     def test_fetch_param_combinations_have_separate_cache(self):
         p1 = {'items': [{'id': 'a1'}]}
         p2 = {'items': [{'id': 'b2'}]}
-        with mock.patch('intel.urllib.request.urlopen',
+        with mock.patch('net.urlopen',
                         side_effect=[_fake_response(p1), _fake_response(p2)]):
             items1, _ = intel.fetch_items(hours=24)
             items2, _ = intel.fetch_items(hours=24, category='paper')
