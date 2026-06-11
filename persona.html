@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>人设引擎 - AI Content OS</title>
+  <link rel="icon" href="/assets/favicon.svg">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, "PingFang SC", sans-serif; background: #f5f6f8; min-height: 100vh; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
+    .logo { font-weight: 700; font-size: 16px; }
+    .btn { padding: 6px 14px; border: 1px solid #d0d0d5; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+    .btn-primary { background: #07c160; border-color: #07c160; color: #fff; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin: 16px auto; max-width: 640px; padding: 24px; }
+    .card h2 { font-size: 15px; margin-bottom: 4px; }
+    .card .desc { font-size: 12px; color: #999; margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 4px; }
+    label small { font-weight: 400; color: #999; }
+    input, textarea { width: 100%; padding: 8px 10px; border: 1px solid #d0d0d5; border-radius: 6px; font-size: 13px; font-family: inherit; }
+    textarea { resize: vertical; }
+    .actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px; }
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 9px 18px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">👤 AI Content OS · 人设引擎</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" onclick="location.href='/intel.html'">📡 情报中心</button>
+      <button class="btn" onclick="location.href='/topics.html'">🗂 选题池</button>
+      <button class="btn" onclick="location.href='/knowledge.html'">📚 知识库</button>
+      <button class="btn" onclick="location.href='/growth.html'">📈 数据</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>品牌人设配置</h2>
+    <div class="desc">保存后，所有 AI 写作都会自动注入这些人设要求，保持账号调性一致。留空的字段不会注入。</div>
+
+    <label>账号人设 <small>你是谁、什么视角写作</small></label>
+    <input id="pName" placeholder="例：一线 AI 实践者，爱用第一人称分享踩坑经验" />
+
+    <label>语气风格</label>
+    <input id="pTone" placeholder="例：轻松口语化，偶尔自嘲，观点明确不和稀泥" />
+
+    <label>常用词汇 / 口头禅 <small>会自然融入正文</small></label>
+    <input id="pVocab" placeholder="例：说人话就是、踩坑、真香" />
+
+    <label>固定开头习惯（Hook）</label>
+    <textarea id="pHook" rows="2" placeholder="例：开头先抛一个读者熟悉的场景或痛点，再引出主题"></textarea>
+
+    <label>固定结尾 / CTA</label>
+    <textarea id="pCta" rows="2" placeholder="例：结尾总结 3 个要点，并引导关注 + 留言讨论"></textarea>
+
+    <label>禁忌词 <small>全文绝对不出现，逗号分隔</small></label>
+    <input id="pTaboo" placeholder="例：赋能, 抓手, 闭环, 颠覆" />
+
+    <div class="actions">
+      <button class="btn btn-primary" id="saveBtn" onclick="save()">保存人设</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const FIELDS = { pName: 'name', pTone: 'tone', pVocab: 'vocabulary',
+                     pHook: 'hook', pCta: 'cta', pTaboo: 'taboo' };
+
+    async function load() {
+      try {
+        const res = await fetch('/api/persona');
+        const p = (await res.json()).persona || {};
+        Object.entries(FIELDS).forEach(([id, key]) => {
+          document.getElementById(id).value = p[key] || '';
+        });
+      } catch (e) { showToast('加载人设失败：' + e.message); }
+    }
+
+    async function save() {
+      const btn = document.getElementById('saveBtn');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      const payload = {};
+      Object.entries(FIELDS).forEach(([id, key]) => {
+        payload[key] = document.getElementById(id).value.trim();
+      });
+      try {
+        const res = await fetch('/api/persona/save', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        showToast('✅ 已保存，下次 AI 写作即生效');
+      } catch (e) {
+        showToast('保存失败：' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    load();
+  </script>
+</body>
+</html>

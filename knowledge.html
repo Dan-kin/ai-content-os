@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知识库 - AI Content OS</title>
+  <link rel="icon" href="/assets/favicon.svg">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, "PingFang SC", sans-serif; background: #f5f6f8; min-height: 100vh; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
+    .logo { font-weight: 700; font-size: 16px; }
+    .btn { padding: 6px 14px; border: 1px solid #d0d0d5; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+    .btn-primary { background: #07c160; border-color: #07c160; color: #fff; }
+    .btn-danger { color: #e64340; border-color: #f0c0bf; }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin: 16px 0; padding: 20px; }
+    .card h2 { font-size: 15px; margin-bottom: 12px; }
+    input, textarea { width: 100%; padding: 8px 10px; border: 1px solid #d0d0d5; border-radius: 6px; font-size: 13px; font-family: inherit; margin-bottom: 8px; }
+    textarea { resize: vertical; }
+    .row { display: flex; gap: 8px; }
+    .row input { margin-bottom: 0; }
+    .hint { font-size: 12px; color: #999; margin: 8px 0 0; }
+    .item { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin: 10px 0; padding: 14px 16px; }
+    .item-title { font-size: 14px; font-weight: 600; }
+    .item-meta { font-size: 12px; color: #999; margin: 4px 0; }
+    .item-meta a { color: #576b95; text-decoration: none; }
+    .item-content { font-size: 13px; color: #555; white-space: pre-wrap; max-height: 80px; overflow: hidden; }
+    .item.open .item-content { max-height: none; }
+    .item-actions { margin-top: 8px; display: flex; gap: 8px; }
+    .state { text-align: center; color: #999; padding: 40px 0; font-size: 13px; }
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 9px 18px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .tag { display: inline-block; background: #f0f1f3; border-radius: 4px; padding: 1px 7px; font-size: 11px; color: #666; margin-right: 4px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">📚 AI Content OS · 知识库</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" onclick="location.href='/intel.html'">📡 情报中心</button>
+      <button class="btn" onclick="location.href='/topics.html'">🗂 选题池</button>
+      <button class="btn" onclick="location.href='/persona.html'">👤 人设</button>
+      <button class="btn" onclick="location.href='/growth.html'">📈 数据</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <h2>添加知识</h2>
+      <input id="kTitle" placeholder="标题（如：Fable 5 定价信息）" />
+      <textarea id="kContent" rows="4" placeholder="内容：事实、数据、案例、金句……写作相关选题时会自动注入 Prompt"></textarea>
+      <div class="row">
+        <input id="kTags" placeholder="标签，逗号分隔（可选）" />
+        <input id="kSource" placeholder="来源 URL（可选）" />
+        <button class="btn btn-primary" onclick="addItem()">添加</button>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <input id="kUrl" placeholder="或粘贴 URL 一键导入网页正文" />
+        <button class="btn" id="importBtn" onclick="importUrl()">📥 导入网页</button>
+      </div>
+      <div class="hint">写作时按选题标题关键词自动匹配，最多注入 6 条相关知识；AI 仍会被要求核实后引用。</div>
+    </div>
+
+    <div class="row" style="margin:0 0 4px;">
+      <input id="kQ" placeholder="搜索知识库（多关键词空格分隔），回车搜索" onkeydown="if(event.key==='Enter')load()" />
+      <button class="btn" onclick="load()">搜索</button>
+    </div>
+
+    <div id="list"><div class="state">加载中…</div></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    async function load() {
+      const list = document.getElementById('list');
+      list.innerHTML = '<div class="state">加载中…</div>';
+      try {
+        const q = document.getElementById('kQ').value.trim();
+        const res = await fetch('/api/knowledge?q=' + encodeURIComponent(q));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        render(data.items || []);
+      } catch (e) {
+        list.innerHTML = '<div class="state">加载失败：' + e.message + '</div>';
+      }
+    }
+
+    function render(items) {
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      if (!items.length) {
+        list.innerHTML = '<div class="state">还没有知识条目，添加第一条吧</div>';
+        return;
+      }
+      for (const it of items) {
+        const div = document.createElement('div');
+        div.className = 'item';
+        const title = document.createElement('div');
+        title.className = 'item-title';
+        title.textContent = it.title;
+        const meta = document.createElement('div');
+        meta.className = 'item-meta';
+        meta.textContent = it.created_at + ' ';
+        for (const tg of (it.tags || '').split(',').filter(Boolean)) {
+          const s = document.createElement('span');
+          s.className = 'tag';
+          s.textContent = tg.trim();
+          meta.appendChild(s);
+        }
+        if (it.source_url) {
+          const a = document.createElement('a');
+          a.href = it.source_url;
+          a.target = '_blank';
+          a.textContent = '来源';
+          meta.appendChild(a);
+        }
+        const content = document.createElement('div');
+        content.className = 'item-content';
+        content.textContent = it.content;
+        const actions = document.createElement('div');
+        actions.className = 'item-actions';
+        const expand = document.createElement('button');
+        expand.className = 'btn';
+        expand.textContent = '展开/收起';
+        expand.onclick = () => div.classList.toggle('open');
+        const del = document.createElement('button');
+        del.className = 'btn btn-danger';
+        del.textContent = '删除';
+        del.onclick = async () => {
+          if (!confirm('删除「' + it.title + '」？')) return;
+          await fetch('/api/knowledge/delete', {method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: it.id})});
+          load();
+        };
+        actions.appendChild(expand);
+        actions.appendChild(del);
+        div.appendChild(title);
+        div.appendChild(meta);
+        div.appendChild(content);
+        div.appendChild(actions);
+        list.appendChild(div);
+      }
+    }
+
+    async function addItem() {
+      const payload = {
+        title: document.getElementById('kTitle').value.trim(),
+        content: document.getElementById('kContent').value.trim(),
+        tags: document.getElementById('kTags').value.trim(),
+        source_url: document.getElementById('kSource').value.trim(),
+      };
+      if (!payload.title || !payload.content) {
+        showToast('标题和内容不能为空');
+        return;
+      }
+      const res = await fetch('/api/knowledge/add', {method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)});
+      if (!res.ok) { showToast('添加失败：HTTP ' + res.status); return; }
+      document.getElementById('kTitle').value = '';
+      document.getElementById('kContent').value = '';
+      document.getElementById('kTags').value = '';
+      document.getElementById('kSource').value = '';
+      showToast('已添加');
+      load();
+    }
+
+    async function importUrl() {
+      const url = document.getElementById('kUrl').value.trim();
+      if (!url) { showToast('请先粘贴 URL'); return; }
+      const btn = document.getElementById('importBtn');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = '导入中…';
+      try {
+        const res = await fetch('/api/knowledge/import-url', {method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({url})});
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        showToast('已导入：' + (data.item ? data.item.title : url));
+        document.getElementById('kUrl').value = '';
+        load();
+      } catch (e) {
+        showToast('导入失败：' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📥 导入网页';
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

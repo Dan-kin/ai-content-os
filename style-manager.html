@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <title>Selfware · Style Manager</title>
+  <style>
+    :root {
+      --bg: #1a1e23;
+      --panel: rgba(255, 255, 255, 0.05);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text: #e0e6ed;
+      --muted: #94a3b8;
+      --accent: #00f0ff;
+      --code-bg: rgba(0, 0, 0, 0.3);
+      --border: rgba(255, 255, 255, 0.1);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+    }
+    .header {
+      padding: 16px 24px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: #fff;
+      border-color: #ef4444;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    .main {
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .styles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .style-card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .style-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    .style-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .style-card h3 {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+    .style-id {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .style-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .style-preview {
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      max-height: 200px;
+      overflow: hidden;
+    }
+    .style-preview h1 {
+      font-size: 24px;
+      margin: 0 0 8px;
+    }
+    .style-preview h2 {
+      font-size: 20px;
+      margin: 8px 0;
+    }
+    .style-preview p {
+      font-size: 14px;
+      margin: 8px 0;
+      color: #333;
+    }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 24px;
+      min-width: 600px;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal h2 { margin: 0 0 16px; font-size: 1.25rem; }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--code-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9375rem;
+      outline: none;
+      font-family: var(--font-mono);
+    }
+    .form-group textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    .form-group input:focus, .form-group textarea:focus {
+      border-color: var(--accent);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .form-row label {
+      font-size: 0.75rem;
+      padding-top: 10px;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--panel-border);
+    }
+    .style-elements {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 768px) {
+      .styles-grid { grid-template-columns: 1fr; }
+      .modal { min-width: 100%; }
+      .style-elements { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎨 样式管理</h1>
+    <button class="btn btn-primary" onclick="showCreateModal()">+ 新增样式</button>
+  </div>
+
+  <div class="main">
+    <div class="styles-grid" id="stylesGrid">
+      <div style="text-align: center; padding: 40px; color: var(--muted);">加载中...</div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <h2 id="modalTitle">编辑样式</h2>
+      <div style="background:var(--code-bg);border:1px solid var(--panel-border);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:0.8125rem;color:var(--muted);line-height:1.6;">
+        <strong style="color:var(--text);">模板语法</strong><br>
+        <code style="color:var(--accent);">{{children}}</code> 子元素（已渲染）&nbsp;
+        <code style="color:var(--accent);">{{text}}</code> 纯文本&nbsp;
+        <code style="color:var(--accent);">{{attrs}}</code> 原始属性（href, src 等）
+      </div>
+      <form id="styleForm" onsubmit="saveStyle(event)">
+        <div class="form-group">
+          <label>样式 ID (英文，例如: wechat-default)</label>
+          <input type="text" id="styleId" required />
+        </div>
+        <div class="form-group">
+          <label>样式名称 (中文，例如: 默认公众号风格)</label>
+          <input type="text" id="styleName" required />
+        </div>
+        
+        <div class="style-elements">
+          <div class="form-group">
+            <label>容器模板</label>
+            <textarea id="styleContainer" placeholder='&lt;section style="max-width:740px;margin:0 auto;padding:20px"&gt;{{children}}&lt;/section&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>H1 标题模板</label>
+            <textarea id="styleH1" placeholder='&lt;h1 style="font-size:24px;font-weight:600;color:#2c3e50"&gt;{{children}}&lt;/h1&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>H2 标题模板</label>
+            <textarea id="styleH2" placeholder='&lt;h2 style="font-size:22px;font-weight:600;color:#2c3e50"&gt;{{children}}&lt;/h2&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>H3 标题模板</label>
+            <textarea id="styleH3" placeholder='&lt;h3 style="font-size:20px;font-weight:600;color:#34495e"&gt;{{children}}&lt;/h3&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>H4 标题模板</label>
+            <textarea id="styleH4" placeholder='&lt;h4 style="font-size:18px;font-weight:600;color:#34495e"&gt;{{children}}&lt;/h4&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>H5 标题模板</label>
+            <textarea id="styleH5" placeholder='&lt;h5 style="font-size:16px;font-weight:600;color:#7f8c8d"&gt;{{children}}&lt;/h5&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>H6 标题模板</label>
+            <textarea id="styleH6" placeholder='&lt;h6 style="font-size:14px;font-weight:600;color:#95a5a6"&gt;{{children}}&lt;/h6&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>段落模板</label>
+            <textarea id="styleP" placeholder='&lt;p style="margin:16px 0;line-height:1.8;color:#3f3f3f"&gt;{{children}}&lt;/p&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>粗体模板</label>
+            <textarea id="styleStrong" placeholder='&lt;strong style="font-weight:600;color:#2c3e50"&gt;{{children}}&lt;/strong&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>斜体模板</label>
+            <textarea id="styleEm" placeholder='&lt;em style="font-style:italic;color:#555"&gt;{{children}}&lt;/em&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>无序列表模板</label>
+            <textarea id="styleUl" placeholder='&lt;ul style="margin:16px 0;padding-left:24px;list-style:disc"&gt;{{children}}&lt;/ul&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>有序列表模板</label>
+            <textarea id="styleOl" placeholder='&lt;ol style="margin:16px 0;padding-left:24px;list-style:decimal"&gt;{{children}}&lt;/ol&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>列表项模板</label>
+            <textarea id="styleLi" placeholder='&lt;li style="margin:8px 0;line-height:1.6"&gt;{{children}}&lt;/li&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>引用模板</label>
+            <textarea id="styleBlockquote" placeholder='&lt;blockquote style="margin:16px 0;padding:8px 16px;background:#fafafa;border-left:3px solid #999"&gt;{{children}}&lt;/blockquote&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>行内代码模板</label>
+            <textarea id="styleCode" placeholder='&lt;code style="font-family:monospace;font-size:14px;padding:2px 6px;background:#f5f5f5;color:#e74c3c"&gt;{{children}}&lt;/code&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>代码块模板</label>
+            <textarea id="stylePre" placeholder='&lt;pre style="margin:20px 0;padding:16px;background:#2d2d2d;border-radius:8px"&gt;{{children}}&lt;/pre&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>链接模板</label>
+            <textarea id="styleA" placeholder='&lt;a {{attrs}} style="color:#3498db;text-decoration:none"&gt;{{children}}&lt;/a&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>分隔线模板</label>
+            <textarea id="styleHr" placeholder='&lt;hr style="margin:24px 0;border:0;border-top:1px solid #eee"&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>图片模板</label>
+            <textarea id="styleImg" placeholder='&lt;img {{attrs}} style="max-width:100%;height:auto;display:block;margin:16px 0"&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>表格模板</label>
+            <textarea id="styleTable" placeholder='&lt;table style="width:100%;border-collapse:collapse;margin:16px 0"&gt;{{children}}&lt;/table&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>表头模板</label>
+            <textarea id="styleTh" placeholder='&lt;th style="background:#f5f5f5;padding:8px 12px;text-align:left;font-weight:600;border:1px solid #ddd"&gt;{{children}}&lt;/th&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>单元格模板</label>
+            <textarea id="styleTd" placeholder='&lt;td style="padding:8px 12px;border:1px solid #ddd"&gt;{{children}}&lt;/td&gt;'></textarea>
+          </div>
+          <div class="form-group">
+            <label>表格行模板</label>
+            <textarea id="styleTr" placeholder='&lt;tr style="border-bottom:1px solid #ddd"&gt;{{children}}&lt;/tr&gt;'></textarea>
+          </div>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn" onclick="hideEditModal()">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let allStyles = {};
+    let editingId = null;
+
+    async function loadStyles() {
+      try {
+        const res = await fetch('/api/styles');
+        const data = await res.json();
+        allStyles = data.styles || {};
+        renderStyles();
+      } catch (e) {
+        console.error('Failed to load styles:', e);
+        document.getElementById('stylesGrid').innerHTML = 
+          '<div style="text-align: center; padding: 40px; color: #ef4444;">加载失败</div>';
+      }
+    }
+
+    function renderStyles() {
+      const grid = document.getElementById('stylesGrid');
+      if (Object.keys(allStyles).length === 0) {
+        grid.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--muted);">暂无样式<br><br>点击"新增样式"开始创建</div>';
+        return;
+      }
+
+      grid.innerHTML = Object.keys(allStyles).map(key => {
+        const style = allStyles[key];
+        const s = style.styles || {};
+
+        // Render preview with template support
+        const applyTpl = (tpl, content) => {
+          if (!tpl) return content;
+          return tpl
+            .replace(/\{\{children\}\}/g, content)
+            .replace(/\{\{text\}\}/g, content)
+            .replace(/\{\{attrs\}\}/g, '');
+        };
+
+        const h1Html = applyTpl(s.h1, '标题示例');
+        const h2Html = applyTpl(s.h2, '二级标题');
+        const pHtml = applyTpl(s.p, '这是一段示例文本，展示该样式的效果。');
+        let previewHtml = h1Html + h2Html + pHtml;
+
+        if (s.container) {
+          previewHtml = applyTpl(s.container, previewHtml);
+        }
+
+        return `
+          <div class="style-card">
+            <div class="style-card-header">
+              <div>
+                <h3>${style.name || key}</h3>
+                <div class="style-id">${key}</div>
+              </div>
+              <div class="style-actions">
+                <button class="btn" onclick="editStyle('${key}')">编辑</button>
+                <button class="btn btn-danger" onclick="deleteStyle('${key}')">删除</button>
+              </div>
+            </div>
+            <div class="style-preview">${previewHtml}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    const DEFAULT_TEMPLATES = {
+      styleContainer: '<section style="max-width:740px;margin:0 auto;padding:10px 12px 20px">{{children}}</section>',
+      styleH1:        '<h1 style="font-size:24px;font-weight:600;color:#2c3e50">{{children}}</h1>',
+      styleH2:        '<h2 style="font-size:22px;font-weight:600;color:#2c3e50">{{children}}</h2>',
+      styleH3:        '<h3 style="font-size:20px;font-weight:600;color:#34495e">{{children}}</h3>',
+      styleH4:        '<h4 style="font-size:18px;font-weight:600;color:#34495e">{{children}}</h4>',
+      styleH5:        '<h5 style="font-size:16px;font-weight:600;color:#7f8c8d">{{children}}</h5>',
+      styleH6:        '<h6 style="font-size:14px;font-weight:600;color:#95a5a6">{{children}}</h6>',
+      styleP:         '<p style="margin:16px 0;line-height:1.8;color:#3f3f3f">{{children}}</p>',
+      styleStrong:    '<strong style="font-weight:600;color:#2c3e50">{{children}}</strong>',
+      styleEm:        '<em style="font-style:italic;color:#555">{{children}}</em>',
+      styleA:         '<a {{attrs}} style="color:#3498db;text-decoration:none">{{children}}</a>',
+      styleUl:        '<ul style="margin:16px 0;padding-left:24px;list-style:disc">{{children}}</ul>',
+      styleOl:        '<ol style="margin:16px 0;padding-left:24px;list-style:decimal">{{children}}</ol>',
+      styleLi:        '<li style="margin:8px 0;line-height:1.6">{{children}}</li>',
+      styleBlockquote:'<blockquote style="margin:16px 0;padding:8px 16px;background:#fafafa;border-left:3px solid #999">{{children}}</blockquote>',
+      styleCode:      '<code style="font-family:monospace;font-size:14px;padding:2px 6px;background:#f5f5f5;color:#e74c3c">{{children}}</code>',
+      stylePre:       '<pre style="margin:20px 0;padding:16px;background:#2d2d2d;border-radius:8px">{{children}}</pre>',
+      styleHr:        '<hr style="margin:24px 0;border:0;border-top:1px solid #eee">',
+      styleImg:       '<img {{attrs}} style="max-width:100%;height:auto;display:block;margin:16px 0">',
+      styleTable:     '<table style="width:100%;border-collapse:collapse;margin:16px 0">{{children}}</table>',
+      styleTh:        '<th style="background:#f5f5f5;padding:8px 12px;text-align:left;font-weight:600;border:1px solid #ddd">{{children}}</th>',
+      styleTd:        '<td style="padding:8px 12px;border:1px solid #ddd">{{children}}</td>',
+      styleTr:        '<tr style="border-bottom:1px solid #ddd">{{children}}</tr>'
+    };
+
+    function showCreateModal() {
+      editingId = null;
+      document.getElementById('modalTitle').textContent = '新增样式';
+      document.getElementById('styleId').value = '';
+      document.getElementById('styleId').disabled = false;
+      document.getElementById('styleName').value = '';
+      resetStyleFields();
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    function editStyle(key) {
+      editingId = key;
+      const style = allStyles[key];
+      document.getElementById('modalTitle').textContent = '编辑样式';
+      document.getElementById('styleId').value = key;
+      document.getElementById('styleId').disabled = true;
+      document.getElementById('styleName').value = style.name || '';
+
+      const s = style.styles || {};
+      document.getElementById('styleContainer').value = s.container || '';
+      document.getElementById('styleH1').value = s.h1 || '';
+      document.getElementById('styleH2').value = s.h2 || '';
+      document.getElementById('styleH3').value = s.h3 || '';
+      document.getElementById('styleH4').value = s.h4 || '';
+      document.getElementById('styleH5').value = s.h5 || '';
+      document.getElementById('styleH6').value = s.h6 || '';
+      document.getElementById('styleP').value = s.p || '';
+      document.getElementById('styleStrong').value = s.strong || '';
+      document.getElementById('styleEm').value = s.em || '';
+      document.getElementById('styleA').value = s.a || '';
+      document.getElementById('styleUl').value = s.ul || '';
+      document.getElementById('styleOl').value = s.ol || '';
+      document.getElementById('styleLi').value = s.li || '';
+      document.getElementById('styleBlockquote').value = s.blockquote || '';
+      document.getElementById('styleCode').value = s.code || '';
+      document.getElementById('stylePre').value = s.pre || '';
+      document.getElementById('styleHr').value = s.hr || '';
+      document.getElementById('styleImg').value = s.img || '';
+      document.getElementById('styleTable').value = s.table || '';
+      document.getElementById('styleTh').value = s.th || '';
+      document.getElementById('styleTd').value = s.td || '';
+      document.getElementById('styleTr').value = s.tr || '';
+
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    function resetStyleFields() {
+      Object.entries(DEFAULT_TEMPLATES).forEach(([id, tpl]) => {
+        document.getElementById(id).value = tpl;
+      });
+    }
+
+    function hideEditModal() {
+      document.getElementById('editModal').classList.remove('active');
+    }
+
+    async function saveStyle(e) {
+      e.preventDefault();
+      
+      const styleData = {
+        container: document.getElementById('styleContainer').value,
+        h1: document.getElementById('styleH1').value,
+        h2: document.getElementById('styleH2').value,
+        h3: document.getElementById('styleH3').value,
+        h4: document.getElementById('styleH4').value,
+        h5: document.getElementById('styleH5').value,
+        h6: document.getElementById('styleH6').value,
+        p: document.getElementById('styleP').value,
+        strong: document.getElementById('styleStrong').value,
+        em: document.getElementById('styleEm').value,
+        a: document.getElementById('styleA').value,
+        ul: document.getElementById('styleUl').value,
+        ol: document.getElementById('styleOl').value,
+        li: document.getElementById('styleLi').value,
+        blockquote: document.getElementById('styleBlockquote').value,
+        code: document.getElementById('styleCode').value,
+        pre: document.getElementById('stylePre').value,
+        hr: document.getElementById('styleHr').value,
+        img: document.getElementById('styleImg').value,
+        table: document.getElementById('styleTable').value,
+        th: document.getElementById('styleTh').value,
+        td: document.getElementById('styleTd').value,
+        tr: document.getElementById('styleTr').value
+      };
+
+      try {
+        const res = await fetch('/api/styles/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: document.getElementById('styleId').value,
+            name: document.getElementById('styleName').value,
+            styles: styleData
+          })
+        });
+        
+        if (res.ok) {
+          hideEditModal();
+          await loadStyles();
+          alert('✅ 保存成功！');
+        } else {
+          const data = await res.json();
+          alert('保存失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('保存失败: ' + e.message);
+      }
+    }
+
+    async function deleteStyle(key) {
+      if (!confirm(`确定要删除样式"${allStyles[key].name || key}"吗？`)) return;
+      
+      try {
+        const res = await fetch('/api/styles/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: key })
+        });
+        
+        if (res.ok) {
+          await loadStyles();
+          alert('✅ 删除成功！');
+        } else {
+          const data = await res.json();
+          alert('删除失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('删除失败: ' + e.message);
+      }
+    }
+
+    loadStyles();
+  </script>
+</body>
+</html>

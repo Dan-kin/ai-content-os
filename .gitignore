@@ -1,0 +1,12 @@
+__pycache__/
+.DS_Store
+data/topics.json
+data/intel_cache.json
+data/intel_adopted.json
+data/persona.json
+data/intel_items.json
+data/sources.json
+data/llm.json
+data/knowledge.db
+data/growth.json
+data/publish-*.html

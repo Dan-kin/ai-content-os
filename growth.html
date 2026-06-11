@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据回流 - AI Content OS</title>
+  <link rel="icon" href="/assets/favicon.svg">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, "PingFang SC", sans-serif; background: #f5f6f8; min-height: 100vh; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
+    .logo { font-weight: 700; font-size: 16px; }
+    .btn { padding: 6px 14px; border: 1px solid #d0d0d5; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+    .btn-primary { background: #07c160; border-color: #07c160; color: #fff; }
+    .btn-danger { color: #e64340; border-color: #f0c0bf; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px 32px; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin: 16px 0; padding: 20px; }
+    .card h2 { font-size: 15px; margin-bottom: 12px; }
+    .form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .form-row input, .form-row select { padding: 8px 10px; border: 1px solid #d0d0d5; border-radius: 6px; font-size: 13px; }
+    .form-row input[type=number] { width: 90px; }
+    #gArticle { flex: 1; min-width: 200px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+    th { color: #999; font-weight: 600; font-size: 12px; }
+    td .del { color: #e64340; cursor: pointer; font-size: 12px; }
+    .state { text-align: center; color: #999; padding: 30px 0; font-size: 13px; }
+    .analysis { white-space: pre-wrap; font-size: 13px; line-height: 1.8; color: #333; }
+    .analysis-meta { font-size: 12px; color: #999; margin-bottom: 8px; }
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 9px 18px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">📈 AI Content OS · 数据回流</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" onclick="location.href='/intel.html'">📡 情报中心</button>
+      <button class="btn" onclick="location.href='/topics.html'">🗂 选题池</button>
+      <button class="btn" onclick="location.href='/knowledge.html'">📚 知识库</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <h2>录入文章数据</h2>
+      <div class="form-row">
+        <select id="gArticle"><option value="">选择文章…</option></select>
+        <select id="gPlatform">
+          <option>公众号</option><option>知乎</option>
+          <option>小红书</option><option>X</option>
+        </select>
+        <input id="gRead" type="number" min="0" placeholder="阅读" />
+        <input id="gLike" type="number" min="0" placeholder="点赞" />
+        <input id="gShare" type="number" min="0" placeholder="分享" />
+        <input id="gComment" type="number" min="0" placeholder="评论" />
+        <button class="btn btn-primary" onclick="addRecord()">录入</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="display:flex;justify-content:space-between;align-items:center;">
+        数据记录
+        <button class="btn" id="anaBtn" onclick="analyze()">🤖 AI 复盘</button>
+      </h2>
+      <div id="records"><div class="state">加载中…</div></div>
+    </div>
+
+    <div class="card" id="anaCard" style="display:none">
+      <h2>AI 复盘建议</h2>
+      <div class="analysis-meta" id="anaMeta"></div>
+      <div class="analysis" id="anaText"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    async function loadFiles() {
+      try {
+        const res = await fetch('/api/files');
+        const data = await res.json();
+        const sel = document.getElementById('gArticle');
+        for (const f of (data.files || [])) {
+          const opt = document.createElement('option');
+          opt.value = f.path;
+          opt.textContent = f.name;
+          sel.appendChild(opt);
+        }
+      } catch (e) { /* 文件列表失败不影响手动输入 */ }
+    }
+
+    async function load() {
+      const box = document.getElementById('records');
+      try {
+        const res = await fetch('/api/growth');
+        const data = await res.json();
+        renderRecords(data.records || []);
+        renderAnalysis(data.analysis);
+      } catch (e) {
+        box.innerHTML = '<div class="state">加载失败：' + e.message + '</div>';
+      }
+    }
+
+    function renderRecords(records) {
+      const box = document.getElementById('records');
+      if (!records.length) {
+        box.innerHTML = '<div class="state">还没有数据，发布文章后把后台数据抄过来吧</div>';
+        return;
+      }
+      const table = document.createElement('table');
+      table.innerHTML = '<tr><th>文章</th><th>平台</th><th>阅读</th>' +
+        '<th>点赞</th><th>分享</th><th>评论</th><th>录入时间</th><th></th></tr>';
+      for (const r of records) {
+        const tr = document.createElement('tr');
+        const cells = [r.article.replace('content/', ''), r.platform,
+                       r.read, r.like, r.share, r.comment,
+                       (r.noted_at || '').replace('T', ' ')];
+        for (const c of cells) {
+          const td = document.createElement('td');
+          td.textContent = c;
+          tr.appendChild(td);
+        }
+        const td = document.createElement('td');
+        const del = document.createElement('span');
+        del.className = 'del';
+        del.textContent = '删除';
+        del.onclick = async () => {
+          await fetch('/api/growth/delete', {method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: r.id})});
+          load();
+        };
+        td.appendChild(del);
+        tr.appendChild(td);
+        table.appendChild(tr);
+      }
+      box.innerHTML = '';
+      box.appendChild(table);
+    }
+
+    function renderAnalysis(a) {
+      if (!a) return;
+      document.getElementById('anaCard').style.display = '';
+      document.getElementById('anaMeta').textContent =
+        '生成于 ' + (a.at || '').replace('T', ' ');
+      document.getElementById('anaText').textContent = a.text;
+    }
+
+    async function addRecord() {
+      const article = document.getElementById('gArticle').value;
+      if (!article) { showToast('请先选择文章'); return; }
+      const payload = {
+        article,
+        platform: document.getElementById('gPlatform').value,
+        read: document.getElementById('gRead').value || 0,
+        like: document.getElementById('gLike').value || 0,
+        share: document.getElementById('gShare').value || 0,
+        comment: document.getElementById('gComment').value || 0,
+      };
+      const res = await fetch('/api/growth/add', {method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)});
+      if (!res.ok) { showToast('录入失败：HTTP ' + res.status); return; }
+      for (const id of ['gRead', 'gLike', 'gShare', 'gComment'])
+        document.getElementById(id).value = '';
+      showToast('已录入');
+      load();
+    }
+
+    async function analyze() {
+      const btn = document.getElementById('anaBtn');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = '⏳ 复盘中…';
+      const reset = () => { btn.disabled = false; btn.textContent = '🤖 AI 复盘'; };
+      try {
+        const res = await fetch('/api/growth/analyze', {method: 'POST',
+          headers: {'Content-Type': 'application/json'}, body: '{}'});
+        const data = await res.json();
+        if (!data.success) { showToast(data.error); reset(); return; }
+        const poll = async () => {
+          try {
+            const r = await fetch('/api/growth/analyze/status?job=' + data.job);
+            const j = await r.json();
+            if (j.status === 'running') { setTimeout(poll, 4000); return; }
+            reset();
+            if (j.status === 'done') {
+              showToast('✅ 复盘完成');
+              renderAnalysis(j.analysis);
+            } else {
+              showToast('❌ 复盘失败：' + (j.error || '未知错误'));
+            }
+          } catch (e) { showToast('状态查询失败，请刷新页面'); reset(); }
+        };
+        poll();
+      } catch (e) {
+        showToast('请求失败：' + e.message);
+        reset();
+      }
+    }
+
+    loadFiles();
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <title>微信公众号编辑器</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    :root {
+      --bg: #1a1e23;
+      --panel: rgba(255, 255, 255, 0.05);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text: #e0e6ed;
+      --muted: #94a3b8;
+      --accent: #00f0ff;
+      --code-bg: rgba(0, 0, 0, 0.3);
+      --border: rgba(255, 255, 255, 0.1);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      height: 100vh;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .header {
+      padding: 12px 20px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+      min-height: 56px;
+      max-height: 56px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+    .logo {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    .file-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--code-bg);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+      flex: 1;
+      max-width: 400px;
+    }
+    .file-selector select {
+      background: transparent;
+      color: var(--text);
+      border: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+      outline: none;
+      width: 100%;
+    }
+    .file-selector select option {
+      background: var(--bg);
+    }
+    .style-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--code-bg);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+    }
+    .style-selector select {
+      background: transparent;
+      color: var(--text);
+      border: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+      outline: none;
+      min-width: 150px;
+    }
+    .style-selector select option {
+      background: var(--bg);
+    }
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn:hover {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 0.8125rem;
+    }
+    .main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      gap: 20px;
+      padding: 20px;
+      overflow: hidden;
+    }
+    .editor-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 10px 16px;
+      background: var(--code-bg);
+      border-bottom: 1px solid var(--panel-border);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .current-file {
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+    }
+    .editor-wrapper {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    #editor {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      color: var(--text);
+      border: none;
+      resize: none;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      outline: none;
+    }
+    .preview-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      overflow: hidden;
+      padding: 20px;
+      min-width: 300px;
+    }
+    .iphone-frame {
+      width: 430px;
+      height: 932px;
+      background: #000;
+      border-radius: 40px;
+      padding: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      position: relative;
+      transform-origin: center center;
+      transition: transform 0.3s ease-out;
+    }
+    .iphone-screen {
+      width: 100%;
+      height: 100%;
+      background: #fff;
+      border-radius: 32px;
+      overflow: hidden;
+      position: relative;
+    }
+    .iphone-notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 28px;
+      background: #000;
+      border-radius: 0 0 16px 16px;
+      z-index: 10;
+    }
+    .preview-content {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 40px 12px 20px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .preview-content::-webkit-scrollbar {
+      width: 4px;
+    }
+    .preview-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .preview-content::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 2px;
+    }
+    .wechat-content {
+      font-size: 16px;
+      line-height: 1.8;
+      color: #3f3f3f;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    .status {
+      padding: 8px 16px;
+      background: var(--panel);
+      border-top: 1px solid var(--panel-border);
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .save-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .save-indicator.saving::before {
+      content: "💾";
+      animation: spin 1s linear infinite;
+    }
+    .save-indicator.saved::before {
+      content: "✓";
+      color: #4ade80;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 24px;
+      min-width: 400px;
+      max-width: 90%;
+    }
+    .modal h2 { margin: 0 0 16px; font-size: 1.25rem; }
+    .modal input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--code-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9375rem;
+      margin-bottom: 16px;
+      outline: none;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--accent);
+      color: #000;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 2000;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    @media (max-width: 1200px) {
+      .main { flex-direction: column; overflow-y: auto; height: auto; }
+      .preview-panel { align-self: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">📱 微信公众号编辑器</div>
+      <div class="file-selector">
+        <span>📁</span>
+        <select id="fileSelect" onchange="switchFile(this.value)">
+          <option value="">加载中...</option>
+        </select>
+      </div>
+      <div class="style-selector">
+        <span>🎨</span>
+        <select id="styleSelect" onchange="applyStyle(this.value)">
+          <option value="">加载样式...</option>
+        </select>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-small" onclick="showNewFileModal()">+ 新建</button>
+        <button class="btn btn-small btn-primary" onclick="saveContent()">保存</button>
+      </div>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <button class="btn" onclick="location.href='/topics.html'">🗂 选题池</button>
+      <button class="btn" onclick="location.href='/knowledge.html'">📚 知识库</button>
+      <button class="btn" onclick="location.href='/growth.html'">📈 数据</button>
+      <button class="btn" onclick="openStyleManager()">样式管理</button>
+      <select id="distPlatform" class="btn" title="选择目标平台后点右侧按钮生成">
+        <option value="zhihu">知乎版</option>
+        <option value="xhs">小红书版</option>
+        <option value="x">X 版</option>
+      </select>
+      <button class="btn" id="distBtn" onclick="makeDistVersion()">🌐 生成多平台版</button>
+      <button class="btn btn-primary" onclick="copyToWeChat()">复制到公众号</button>
+      <button class="btn btn-primary" id="pubBtn" onclick="publishToWeChat()">🚀 发布公众号</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="editor-panel">
+      <div class="panel-header">
+        <span>Markdown 编辑器</span>
+        <span class="current-file" id="currentFile"></span>
+      </div>
+      <div class="editor-wrapper">
+        <textarea id="editor" placeholder="在这里输入 Markdown 内容..."></textarea>
+      </div>
+      <div class="status">
+        <span class="save-indicator" id="saveIndicator"></span>
+        <span id="wordCount">0 字</span>
+      </div>
+    </div>
+
+    <div class="preview-panel">
+      <div class="panel-header" style="justify-content: center;">iPhone 17 Pro Max 预览</div>
+      <div class="iphone-frame">
+        <div class="iphone-screen">
+          <div class="iphone-notch"></div>
+          <div class="preview-content wechat-content" id="preview"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="newFileModal">
+    <div class="modal">
+      <h2>新建文件</h2>
+      <input type="text" id="newFileName" placeholder="文件名 (例如: my-article.md)" />
+      <div class="modal-actions">
+        <button class="btn" onclick="hideNewFileModal()">取消</button>
+        <button class="btn btn-primary" onclick="createNewFile()">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">已复制到剪贴板！</div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+    const saveIndicator = document.getElementById('saveIndicator');
+    const wordCount = document.getElementById('wordCount');
+    const fileSelect = document.getElementById('fileSelect');
+    const styleSelect = document.getElementById('styleSelect');
+    const currentFileSpan = document.getElementById('currentFile');
+
+    let currentFile = null;
+    let currentStyle = null;
+    let autoSaveTimer = null;
+    let originalContent = '';
+    let allStyles = {};
+
+    async function init() {
+      await loadStyles();
+      await loadFileList();
+      const urlFile = new URLSearchParams(location.search).get('file');
+      if (urlFile) currentFile = urlFile;
+      await loadCurrentFile();
+      setupAutoSave();
+      setupScrollSync();
+    }
+
+    async function loadStyles() {
+      try {
+        const res = await fetch('/api/styles');
+        const data = await res.json();
+        allStyles = data.styles || {};
+        styleSelect.innerHTML = '<option value="">选择样式...</option>';
+        Object.entries(allStyles).forEach(([id, style]) => {
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = style.name || id;
+          styleSelect.appendChild(opt);
+        });
+        // Auto-select first style
+        if (Object.keys(allStyles).length > 0) {
+          const firstStyle = Object.keys(allStyles)[0];
+          styleSelect.value = firstStyle;
+          currentStyle = firstStyle;
+        }
+      } catch (e) { console.error('Failed to load styles:', e); }
+    }
+
+    async function loadFileList() {
+      try {
+        const res = await fetch('/api/files');
+        const data = await res.json();
+        const files = data.files || [];
+        fileSelect.innerHTML = '<option value="">选择文件...</option>';
+        files.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.path;
+          opt.textContent = f.name;
+          fileSelect.appendChild(opt);
+        });
+      } catch (e) { console.error('Failed to load file list:', e); }
+    }
+
+    async function loadCurrentFile() {
+      try {
+        if (!currentFile && fileSelect.options.length > 1) {
+          currentFile = fileSelect.options[1].value;
+          fileSelect.value = currentFile;
+        }
+        if (!currentFile) {
+          editor.value = '# 欢迎使用微信公众号编辑器\n\n请在左侧选择或创建文件开始创作。\n\n## 功能特点\n\n- 📝 Markdown 编辑\n- 📱 iPhone 实时预览\n- 🎨 多种样式选择\n- 📋 一键复制到公众号\n';
+          updatePreview();
+          return;
+        }
+        const res = await fetch(`/api/content?path=${encodeURIComponent(currentFile)}`);
+        if (res.status === 404) {
+          editor.value = '# 文章尚未就绪\n\n该文件还不存在，可能 AI 正在生成中（约需 1-3 分钟）。\n\n请回到选题池等待「生成中」状态结束后，再点击「打开文章」。';
+          updatePreview();
+          return;
+        }
+        const data = await res.json();
+        originalContent = data?.content || '';
+        editor.value = originalContent;
+        fileSelect.value = currentFile;
+        const fileName = currentFile.replace('content/', '');
+        currentFileSpan.textContent = fileName ? `(${fileName})` : '';
+        updatePreview();
+      } catch (e) {
+        console.error('Failed to load content:', e);
+        editor.value = '# 加载失败\n\n请检查服务器连接。';
+        updatePreview();
+      }
+    }
+
+    async function switchFile(path) {
+      if (!path || path === currentFile) return;
+      if (editor.value !== originalContent && originalContent) {
+        if (!confirm('当前文件有未保存的更改，确定要切换吗？')) {
+          fileSelect.value = currentFile || '';
+          return;
+        }
+      }
+      currentFile = path;
+      await loadCurrentFile();
+    }
+
+    function applyStyle(styleId) {
+      currentStyle = styleId || null;
+      updatePreview();
+    }
+
+    function inlineStyles(html, styleObj) {
+      if (!styleObj || !styleObj.styles) return html;
+      const styles = styleObj.styles;
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+
+      // Tag alias mapping (b→strong, i→em)
+      const aliasMap = { 'b': 'strong', 'i': 'em' };
+
+      function process(node) {
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+        // Bottom-up: render children first
+        Array.from(node.children).forEach(child => process(child));
+
+        const tag = node.tagName.toLowerCase();
+        const templateKey = aliasMap[tag] || tag;
+        const tpl = styles[templateKey];
+        if (!tpl) return;
+
+        // Gather inner HTML (children already rendered by this point)
+        const innerHtml = Array.from(node.childNodes).map(child => {
+          if (child.nodeType === Node.TEXT_NODE) return child.textContent;
+          return child.outerHTML;
+        }).join('');
+
+        // Gather original attributes (excluding style, for re-injection via {{attrs}})
+        const attrs = Array.from(node.attributes)
+          .filter(a => a.name !== 'style')
+          .map(a => `${a.name}="${a.value}"`)
+          .join(' ');
+
+        // Apply placeholders
+        const rendered = tpl
+          .replace(/\{\{children\}\}/g, innerHtml)
+          .replace(/\{\{text\}\}/g, node.textContent)
+          .replace(/\{\{attrs\}\}/g, attrs);
+
+        // Replace node in-place
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = rendered.trim();
+        const newNode = wrapper.firstElementChild || wrapper.firstChild;
+        if (newNode && node.parentNode) {
+          node.parentNode.replaceChild(newNode, node);
+        }
+      }
+
+      // Render all top-level elements bottom-up
+      Array.from(temp.children).forEach(child => process(child));
+
+      // Apply container template if defined
+      if (styles.container) {
+        return styles.container.replace(/\{\{children\}\}/g, temp.innerHTML);
+      }
+
+      return temp.innerHTML;
+    }
+
+    function updatePreview() {
+      const md = editor.value;
+      const html = window.marked ? marked.parse(md) : md;
+
+      if (currentStyle && allStyles[currentStyle]) {
+        preview.innerHTML = inlineStyles(html, allStyles[currentStyle]);
+      } else {
+        preview.innerHTML = html;
+      }
+
+      wordCount.textContent = md.length + ' 字';
+    }
+
+    function setupAutoSave() {
+      editor.addEventListener('input', () => {
+        updatePreview();
+        saveIndicator.className = 'save-indicator';
+        saveIndicator.textContent = '有未保存的更改';
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(() => saveContent(true), 2000);
+      });
+    }
+
+    async function saveContent(silent = false) {
+      const content = editor.value;
+      saveIndicator.className = 'save-indicator saving';
+      saveIndicator.textContent = '保存中...';
+      try {
+        const res = await fetch('/api/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, path: currentFile })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          saveIndicator.className = 'save-indicator saved';
+          saveIndicator.textContent = '已保存';
+          originalContent = content;
+          if (data.path) {
+            currentFile = data.path;
+            const fileName = currentFile.replace('content/', '');
+            currentFileSpan.textContent = `(${fileName})`;
+          }
+        } else {
+          throw new Error(data.error || 'Save failed');
+        }
+      } catch (e) {
+        saveIndicator.className = 'save-indicator';
+        saveIndicator.textContent = '保存失败: ' + e.message;
+        console.error(e);
+      }
+      if (!silent) {
+        setTimeout(() => { if (saveIndicator.classList.contains('saved')) saveIndicator.textContent = ''; }, 2000);
+      }
+    }
+
+    function openStyleManager() {
+      window.open('/style-manager.html', '_blank', 'width=1200,height=800');
+    }
+
+    async function makeDistVersion() {
+      if (!currentFile) { showToast('请先选择或保存文件'); return; }
+      const btn = document.getElementById('distBtn');
+      if (btn.disabled) return;
+      const platform = document.getElementById('distPlatform').value;
+      btn.disabled = true;
+      btn.textContent = '⏳ 转换中…';
+      const reset = () => { btn.disabled = false; btn.textContent = '🌐 生成多平台版'; };
+      try {
+        await saveContent(true);
+        const res = await fetch('/api/dist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: currentFile, platform })
+        });
+        const data = await res.json();
+        if (!data.success) { showToast('转换失败：' + data.error); reset(); return; }
+        showToast('已开始转换，完成后自动打开新文件（约 1-2 分钟）');
+        const poll = async () => {
+          try {
+            const r = await fetch('/api/dist/status?job=' + data.job);
+            const j = await r.json();
+            if (j.status === 'running') { setTimeout(poll, 4000); return; }
+            reset();
+            if (j.status === 'done') {
+              showToast('✅ 转换完成');
+              location.href = '/index.html?file=' + encodeURIComponent(j.output);
+            } else {
+              showToast('❌ 转换失败：' + (j.error || '未知错误'));
+            }
+          } catch (e) { showToast('转换状态查询失败，请稍后刷新'); reset(); }
+        };
+        poll();
+      } catch (e) {
+        showToast('转换请求失败：' + e.message);
+        reset();
+      }
+    }
+
+    async function publishToWeChat() {
+      if (!currentFile) { showToast('请先选择或保存文件'); return; }
+      const btn = document.getElementById('pubBtn');
+      if (btn.disabled) return;
+      if (!confirm('先保存当前内容，然后发布到公众号草稿箱？\n（最终群发仍需在公众号后台确认）')) return;
+      btn.disabled = true;
+      btn.textContent = '⏳ 发布中…';
+      const reset = () => { btn.disabled = false; btn.textContent = '🚀 发布公众号'; };
+      try {
+        await saveContent(true);
+        // 与预览/复制同一条渲染管线：marked + 当前选中风格的行内样式，
+        // 所见即所得；标题取第一个 h1 并从正文剥离（微信标题栏单独填）
+        const md = editor.value;
+        let html = window.marked ? marked.parse(md) : md;
+        if (currentStyle && allStyles[currentStyle]) {
+          html = inlineStyles(html, allStyles[currentStyle]);
+        }
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        let title = '';
+        const h1 = tempDiv.querySelector('h1');
+        if (h1) { title = h1.textContent.trim(); h1.remove(); }
+        if (!title) {
+          title = currentFile.replace('content/', '').replace(/\.md$/, '');
+        }
+        const res = await fetch('/api/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: currentFile, title,
+                                 html: tempDiv.innerHTML })
+        });
+        const data = await res.json();
+        if (!data.success) { showToast('发布失败：' + data.error); reset(); return; }
+        showToast(data.mode === 'browser'
+          ? '已开始发布（浏览器模式，请留意弹出的 Chrome 窗口）'
+          : '已开始发布（API 模式）');
+        const poll = async () => {
+          try {
+            const r = await fetch('/api/publish/status?job=' + data.job);
+            const j = await r.json();
+            if (j.status === 'running') { setTimeout(poll, 4000); return; }
+            showToast(j.status === 'done'
+              ? '✅ 已发布到公众号草稿箱'
+              : '❌ 发布失败：' + (j.error || '未知错误'));
+            reset();
+          } catch (e) { showToast('发布状态查询失败，请稍后刷新确认'); reset(); }
+        };
+        poll();
+      } catch (e) {
+        showToast('发布请求失败：' + e.message);
+        reset();
+      }
+    }
+
+    async function copyToWeChat() {
+      try {
+        const md = editor.value;
+        const html = window.marked ? marked.parse(md) : md;
+
+        let finalHtml = html;
+        if (currentStyle && allStyles[currentStyle]) {
+          finalHtml = inlineStyles(html, allStyles[currentStyle]);
+        }
+
+        // Create a temporary element to copy rich text
+        const temp = document.createElement('div');
+        temp.innerHTML = finalHtml;
+        temp.style.position = 'fixed';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+
+        const range = document.createRange();
+        range.selectNodeContents(temp);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        try {
+          document.execCommand('copy');
+          showToast('已复制到剪贴板！可以直接粘贴到公众号编辑器');
+        } catch (err) {
+          // Fallback: try clipboard API
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                'text/html': new Blob([finalHtml], { type: 'text/html' }),
+                'text/plain': new Blob([temp.textContent], { type: 'text/plain' })
+              })
+            ]);
+            showToast('已复制到剪贴板！可以直接粘贴到公众号编辑器');
+          } catch (clipboardErr) {
+            showToast('复制失败，请手动复制预览内容');
+          }
+        }
+
+        selection.removeAllRanges();
+        document.body.removeChild(temp);
+      } catch (e) {
+        console.error('Copy failed:', e);
+        showToast('复制失败，请重试');
+      }
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Scroll sync between editor and preview
+    let isScrolling = false;
+    function setupScrollSync() {
+      const editorElement = document.getElementById('editor');
+      const previewContent = document.querySelector('.preview-content');
+
+      console.log('Setting up scroll sync...', { editorElement, previewContent });
+
+      if (!editorElement || !previewContent) {
+        console.warn('Scroll sync setup failed: elements not found');
+        return;
+      }
+
+      editorElement.addEventListener('scroll', () => {
+        if (isScrolling) return;
+        isScrolling = true;
+
+        const editorScrollRatio = editorElement.scrollTop / (editorElement.scrollHeight - editorElement.clientHeight);
+        const previewScrollTop = editorScrollRatio * (previewContent.scrollHeight - previewContent.clientHeight);
+        previewContent.scrollTop = previewScrollTop;
+
+        setTimeout(() => { isScrolling = false; }, 50);
+      });
+
+      previewContent.addEventListener('scroll', () => {
+        if (isScrolling) return;
+        isScrolling = true;
+
+        const previewScrollRatio = previewContent.scrollTop / (previewContent.scrollHeight - previewContent.clientHeight);
+        const editorScrollTop = previewScrollRatio * (editorElement.scrollHeight - editorElement.clientHeight);
+        editorElement.scrollTop = editorScrollTop;
+
+        setTimeout(() => { isScrolling = false; }, 50);
+      });
+
+      console.log('Scroll sync setup complete!');
+    }
+
+    function showNewFileModal() {
+      document.getElementById('newFileModal').classList.add('active');
+      document.getElementById('newFileName').focus();
+    }
+
+    function hideNewFileModal() {
+      document.getElementById('newFileModal').classList.remove('active');
+      document.getElementById('newFileName').value = '';
+    }
+
+    async function createNewFile() {
+      const filename = document.getElementById('newFileName').value.trim();
+      if (!filename) { alert('请输入文件名'); return; }
+      if (editor.value !== originalContent && originalContent) {
+        const saveFirst = confirm('当前文件有未保存的更改，是否先保存？');
+        if (saveFirst) {
+          await saveContent(false);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      try {
+        const res = await fetch('/api/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          hideNewFileModal();
+          await loadFileList();
+          currentFile = data.path;
+          fileSelect.value = currentFile;
+          await loadCurrentFile();
+        } else {
+          alert('创建失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('创建失败: ' + e.message);
+        console.error(e);
+      }
+    }
+
+    document.getElementById('newFileName').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') createNewFile();
+    });
+
+    // Auto-scale iPhone preview to fit window
+    function scalePhonePreview() {
+      const frame = document.querySelector('.iphone-frame');
+      const panel = document.querySelector('.preview-panel');
+      if (!frame || !panel) return;
+
+      const frameWidth = 430;
+      const frameHeight = 932;
+
+      // Get actual available space (minus padding)
+      const panelRect = panel.getBoundingClientRect();
+      const availableWidth = panelRect.width - 40;
+      const availableHeight = panelRect.height - 40;
+
+      // Calculate scale to fit
+      const scaleX = availableWidth / frameWidth;
+      const scaleY = availableHeight / frameHeight;
+      const scale = Math.min(scaleX, scaleY, 1); // Never scale up, only down
+
+      frame.style.transform = `scale(${scale})`;
+
+      // Debug info
+      console.log('Scale preview:', {
+        available: `${availableWidth}x${availableHeight}`,
+        scale: scale.toFixed(3),
+        scaleX: scaleX.toFixed(3),
+        scaleY: scaleY.toFixed(3)
+      });
+    }
+
+    // Scale on load and resize with multiple delays
+    window.addEventListener('load', () => {
+      scalePhonePreview();
+      setTimeout(scalePhonePreview, 50);
+      setTimeout(scalePhonePreview, 200);
+    });
+    window.addEventListener('resize', scalePhonePreview);
+
+    init();
+  </script>
+</body>
+</html>

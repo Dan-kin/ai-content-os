@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>选题池 - AI Content OS</title>
+  <link rel="icon" href="/assets/favicon.svg">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, "PingFang SC", sans-serif; background: #f5f6f8; min-height: 100vh; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
+    .logo { font-weight: 700; font-size: 16px; }
+    .btn { padding: 6px 14px; border: 1px solid #d0d0d5; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+    .btn-primary { background: #07c160; border-color: #07c160; color: #fff; }
+    .new-topic { display: flex; gap: 8px; padding: 14px 20px; background: #fff; margin: 16px 20px 0; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); flex-wrap: wrap; }
+    .new-topic input, .new-topic select { padding: 7px 10px; border: 1px solid #d0d0d5; border-radius: 6px; font-size: 13px; }
+    .new-topic input[name=title] { flex: 2; min-width: 200px; }
+    .new-topic input[name=source] { flex: 2; min-width: 160px; }
+    .new-topic input[name=notes] { flex: 3; min-width: 160px; }
+    .board { display: flex; gap: 12px; padding: 16px 20px; align-items: flex-start; overflow-x: auto; }
+    .col { flex: 1; min-width: 200px; background: #ededf0; border-radius: 10px; padding: 10px; }
+    .col-title { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px; }
+    .card { background: #fff; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.08); font-size: 13px; }
+    .card-title { font-weight: 600; margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 11px; background: #e8f7ef; color: #0a7d4b; border-radius: 4px; padding: 1px 6px; margin-bottom: 6px; }
+    .card .meta { color: #999; font-size: 11px; margin-bottom: 6px; word-break: break-all; }
+    .card .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .card select { font-size: 12px; padding: 2px 4px; border-radius: 4px; border: 1px solid #ddd; }
+    .card .link { color: #07c160; cursor: pointer; font-size: 12px; text-decoration: none; }
+    .card .danger { color: #e55; cursor: pointer; font-size: 12px; }
+    .generating { color: #b8860b; font-size: 12px; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); align-items: center; justify-content: center; z-index: 10; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #fff; border-radius: 12px; padding: 22px; width: 420px; max-width: 92vw; }
+    .modal h2 { font-size: 16px; margin-bottom: 10px; }
+    .modal label { display: block; font-size: 12px; color: #666; margin: 10px 0 4px; }
+    .modal input, .modal select, .modal textarea { width: 100%; padding: 7px 10px; border: 1px solid #d0d0d5; border-radius: 6px; font-size: 13px; font-family: inherit; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 9px 18px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">🗂 AI Content OS · 选题池</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" onclick="location.href='/intel.html'">📡 情报中心</button>
+      <button class="btn" onclick="location.href='/persona.html'">👤 人设</button>
+      <button class="btn" onclick="location.href='/knowledge.html'">📚 知识库</button>
+      <button class="btn" onclick="location.href='/growth.html'">📈 数据</button>
+      <button class="btn" onclick="location.href='/index.html'">📝 打开编辑器</button>
+    </div>
+  </div>
+
+  <form class="new-topic" onsubmit="createTopic(event)">
+    <input name="title" placeholder="选题标题（必填）" required />
+    <select name="type"></select>
+    <input name="source" placeholder="参考来源 URL（可选）" />
+    <input name="notes" placeholder="备注（可选）" />
+    <button class="btn btn-primary" type="submit">+ 添加选题</button>
+  </form>
+
+  <div class="board" id="board"></div>
+
+  <div class="modal-overlay" id="genModal">
+    <div class="modal">
+      <h2>✍️ AI 生成文章</h2>
+      <div id="genTopicTitle" style="font-size:13px;color:#666;"></div>
+      <label>篇幅（字数）</label>
+      <select id="genLength">
+        <option>1000</option>
+        <option selected>2000</option>
+        <option>3000</option>
+      </select>
+      <label>风格</label>
+      <input id="genStyle" value="通俗易懂" />
+      <label>目标读者</label>
+      <input id="genAudience" value="关注 AI 的公众号读者" />
+      <label>补充要求（可选）</label>
+      <textarea id="genExtra" rows="3" placeholder="例如：开头用一个真实场景引入"></textarea>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeGenModal()">取消</button>
+        <button class="btn btn-primary" id="genStartBtn" onclick="startGenerate()">开始生成</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STATUSES = ['待调研', '待写作', '待审核', '待发布', '已发布'];
+    let TYPES = ['新闻解读', '产品测评', '技术拆解', '行业分析', '教程'];
+    let topics = [];
+    let genTopicId = null;
+    const runningJobs = {};  // topicId -> jobId
+    const publishingTopics = {};  // topicId -> 发布 jobId（防重复点击）
+
+    function renderTypeOptions() {
+      document.querySelector('.new-topic select[name=type]').innerHTML =
+        TYPES.map(t => `<option>${t}</option>`).join('');
+    }
+    renderTypeOptions();
+    // 类型列表走模板系统（data/templates.json 可自定义扩展）
+    fetch('/api/templates').then(r => r.json()).then(d => {
+      if (d.types && d.types.length) { TYPES = d.types; renderTypeOptions(); }
+    }).catch(() => {});
+
+    let refreshTimer = null;
+
+    async function load() {
+      const res = await fetch('/api/topics');
+      topics = (await res.json()).topics || [];
+      render();
+      // 有任务在生成时自动刷新，刷新页面后也能恢复进度显示
+      const generating = topics.some(t => t.gen === 'running');
+      clearTimeout(refreshTimer);
+      if (generating) refreshTimer = setTimeout(load, 4000);
+    }
+
+    function render() {
+      const board = document.getElementById('board');
+      board.innerHTML = '';
+      STATUSES.forEach(status => {
+        const col = document.createElement('div');
+        col.className = 'col';
+        const items = topics.filter(t => t.status === status);
+        const title = document.createElement('div');
+        title.className = 'col-title';
+        title.textContent = `${status} · ${items.length}`;
+        col.appendChild(title);
+        items.forEach(t => col.appendChild(card(t)));
+        board.appendChild(col);
+      });
+    }
+
+    function card(t) {
+      const el = document.createElement('div');
+      el.className = 'card';
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'card-title';
+      titleEl.textContent = t.title;
+      el.appendChild(titleEl);
+
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = t.type;
+      el.appendChild(badge);
+
+      if (t.source) {
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const a = document.createElement('a');
+        a.href = t.source;
+        a.target = '_blank';
+        a.textContent = t.source;
+        a.className = 'link';
+        meta.appendChild(a);
+        el.appendChild(meta);
+      }
+      if (t.notes) {
+        const notes = document.createElement('div');
+        notes.className = 'meta';
+        notes.textContent = t.notes;
+        el.appendChild(notes);
+      }
+
+      if (t.gen === 'error' && t.gen_error) {
+        const err = document.createElement('div');
+        err.className = 'meta';
+        err.style.color = '#e55';
+        err.textContent = '❌ 上次生成失败：' + t.gen_error;
+        el.appendChild(err);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      if (runningJobs[t.id] || t.gen === 'running') {
+        const span = document.createElement('span');
+        span.className = 'generating';
+        span.textContent = '⏳ AI 生成中（约需 1-3 分钟）…';
+        actions.appendChild(span);
+      } else {
+        const gen = document.createElement('a');
+        gen.className = 'link';
+        gen.textContent = t.gen === 'error' ? '🔄 重新生成' : '✍️ AI 写作';
+        gen.onclick = () => openGenModal(t.id);
+        actions.appendChild(gen);
+
+        if (t.article && t.gen !== 'running' && t.gen !== 'error') {
+          const open = document.createElement('a');
+          open.className = 'link';
+          open.textContent = '📝 打开文章';
+          open.href = '/index.html?file=' + encodeURIComponent(t.article);
+          actions.appendChild(open);
+
+          if (t.status !== '已发布') {
+            const pub = document.createElement('a');
+            pub.className = 'link';
+            if (publishingTopics[t.id]) {
+              pub.textContent = '⏳ 发布中…';
+            } else {
+              pub.textContent = '🚀 发布公众号';
+              pub.onclick = () => publishTopic(t.id, t.article);
+            }
+            actions.appendChild(pub);
+          }
+        }
+
+        const sel = document.createElement('select');
+        sel.innerHTML = STATUSES.map(s =>
+          `<option${s === t.status ? ' selected' : ''}>${s}</option>`).join('');
+        sel.onchange = () => setStatus(t.id, sel.value);
+        actions.appendChild(sel);
+
+        const del = document.createElement('a');
+        del.className = 'danger';
+        del.textContent = '删除';
+        del.onclick = () => removeTopic(t.id);
+        actions.appendChild(del);
+      }
+      el.appendChild(actions);
+      return el;
+    }
+
+    async function createTopic(ev) {
+      ev.preventDefault();
+      const form = ev.target;
+      const payload = {
+        title: form.title.value.trim(),
+        type: form.type.value,
+        source: form.source.value.trim(),
+        notes: form.notes.value.trim(),
+      };
+      if (!payload.title) return;
+      const res = await fetch('/api/topics/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        form.reset();
+        showToast('选题已添加');
+        await load();
+      } else {
+        showToast('添加失败：' + res.status);
+      }
+    }
+
+    async function setStatus(id, status) {
+      await fetch('/api/topics/update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id, status}),
+      });
+      await load();
+    }
+
+    async function publishTopic(id, article) {
+      if (publishingTopics[id]) return;
+      if (!confirm('发布到公众号草稿箱？\n（最终群发仍需在公众号后台确认）')) return;
+      try {
+        const res = await fetch('/api/publish', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({file: article, topic_id: id}),
+        });
+        const data = await res.json();
+        if (!data.success) { showToast('发布失败：' + data.error); return; }
+        publishingTopics[id] = data.job;
+        showToast(data.mode === 'browser'
+          ? '已开始发布（浏览器模式，请留意弹出的 Chrome 窗口）'
+          : '已开始发布（API 模式）');
+        render();
+        pollPublish(id, data.job);
+      } catch (e) {
+        showToast('发布请求失败：' + e.message);
+      }
+    }
+
+    async function pollPublish(id, job) {
+      try {
+        const res = await fetch('/api/publish/status?job=' + job);
+        if (res.ok) {
+          const j = await res.json();
+          if (j.status === 'running') {
+            setTimeout(() => pollPublish(id, job), 4000);
+            return;
+          }
+          delete publishingTopics[id];
+          if (j.status === 'done') {
+            showToast('✅ 已发布到公众号草稿箱');
+          } else {
+            showToast('❌ 发布失败：' + (j.error || '未知错误'));
+          }
+          await load();
+          return;
+        }
+      } catch (e) { /* 网络抖动按失败处理 */ }
+      delete publishingTopics[id];
+      showToast('发布状态查询失败，请刷新页面确认');
+      await load();
+    }
+
+    async function removeTopic(id) {
+      if (!confirm('确定删除这个选题吗？')) return;
+      await fetch('/api/topics/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id}),
+      });
+      await load();
+    }
+
+    function openGenModal(id) {
+      genTopicId = id;
+      const t = topics.find(x => x.id === id);
+      document.getElementById('genTopicTitle').textContent =
+        '选题：' + (t ? t.title : '');
+      const btn = document.getElementById('genStartBtn');
+      btn.disabled = false;
+      btn.textContent = '开始生成';
+      document.getElementById('genModal').classList.add('show');
+    }
+
+    function closeGenModal() {
+      document.getElementById('genModal').classList.remove('show');
+    }
+
+    async function startGenerate() {
+      const btn = document.getElementById('genStartBtn');
+      if (btn.disabled) return;  // 防止双击重复提交
+      btn.disabled = true;
+      btn.textContent = '启动中…';
+      const payload = {
+        id: genTopicId,
+        length: document.getElementById('genLength').value,
+        style: document.getElementById('genStyle').value,
+        audience: document.getElementById('genAudience').value,
+        extra: document.getElementById('genExtra').value,
+      };
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        showToast('启动失败：' + res.status);
+        btn.disabled = false;
+        btn.textContent = '开始生成';
+        return;
+      }
+      const data = await res.json();
+      runningJobs[genTopicId] = data.job;
+      closeGenModal();
+      showToast('AI 开始写作，约需 1-3 分钟，完成后会提示');
+      pollJob(genTopicId, data.job, data.article);
+      await load();
+    }
+
+    function pollJob(topicId, jobId, article) {
+      const timer = setInterval(async () => {
+        try {
+          const res = await fetch('/api/generate/status?job=' +
+                                  encodeURIComponent(jobId));
+          if (!res.ok) return;
+          const job = await res.json();
+          if (job.status === 'running') return;
+          clearInterval(timer);
+          delete runningJobs[topicId];
+          if (job.status === 'done') {
+            showToast('✅ 文章已生成');
+            if (confirm('文章已生成，是否打开编辑器查看？')) {
+              location.href = '/index.html?file=' + encodeURIComponent(article);
+              return;
+            }
+          } else {
+            alert('生成失败：' + (job.error || '未知错误'));
+          }
+          await load();
+        } catch (e) {
+          // 服务器暂时不可达时继续轮询
+        }
+      }, 3000);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>情报中心 - AI Content OS</title>
+  <link rel="icon" href="/assets/favicon.svg">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, "PingFang SC", sans-serif; background: #f5f6f8; min-height: 100vh; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
+    .logo { font-weight: 700; font-size: 16px; }
+    .nav { display: flex; gap: 8px; }
+    .btn { padding: 6px 14px; border: 1px solid #d0d0d5; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+    .btn-primary { background: #07c160; border-color: #07c160; color: #fff; }
+    .filters { display: flex; gap: 8px; padding: 14px 20px; background: #fff; margin: 16px 20px 0; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); flex-wrap: wrap; align-items: center; }
+    .filters select, .filters input { padding: 7px 10px; border: 1px solid #d0d0d5; border-radius: 6px; font-size: 13px; }
+    .filters input { flex: 1; min-width: 160px; }
+    .hint { font-size: 11px; color: #999; padding: 6px 22px 0; }
+    .list { padding: 12px 20px 24px; display: flex; flex-direction: column; gap: 10px; }
+    .item { background: #fff; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+    .item-head { display: flex; gap: 10px; align-items: flex-start; }
+    .score { flex-shrink: 0; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #fff; }
+    .s-high { background: #e74c3c; }
+    .s-mid { background: #e67e22; }
+    .s-low { background: #95a5a6; }
+    .item-title { font-size: 14px; font-weight: 600; line-height: 1.5; }
+    .item-title a { color: #222; text-decoration: none; }
+    .item-title a:hover { color: #07c160; }
+    .item-meta { font-size: 11px; color: #999; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge { display: inline-block; font-size: 11px; background: #eef3ff; color: #3b6fd4; border-radius: 4px; padding: 1px 6px; }
+    .summary { font-size: 13px; color: #555; line-height: 1.7; margin-top: 8px; }
+    .item-actions { margin-top: 10px; display: flex; gap: 10px; align-items: center; }
+    .link { color: #07c160; cursor: pointer; font-size: 13px; text-decoration: none; }
+    .adopted { color: #999; font-size: 13px; }
+    .state { text-align: center; padding: 50px 20px; color: #999; font-size: 14px; }
+    .state .btn { margin-top: 12px; }
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 9px 18px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">📡 AI Content OS · 情报中心</div>
+    <div class="nav">
+      <button class="btn" onclick="location.href='/topics.html'">🗂 选题池</button>
+      <button class="btn" onclick="location.href='/knowledge.html'">📚 知识库</button>
+      <button class="btn" onclick="location.href='/growth.html'">📈 数据</button>
+      <button class="btn" onclick="location.href='/index.html'">📝 编辑器</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <select id="fSource" onchange="load()">
+      <option value="aihot">信源：AI HOT</option>
+      <option value="rss">信源：我的 RSS</option>
+    </select>
+    <select id="fHours" onchange="load()">
+      <option value="24">最近 24 小时</option>
+      <option value="72">最近 3 天</option>
+      <option value="168">最近 7 天</option>
+    </select>
+    <select id="fCategory" onchange="load()">
+      <option value="">全部分类</option>
+      <option value="ai-models">模型发布</option>
+      <option value="ai-products">产品发布</option>
+      <option value="industry">行业动态</option>
+      <option value="paper">论文研究</option>
+      <option value="tip">技巧观点</option>
+    </select>
+    <input id="fQ" placeholder="关键词（如 OpenAI、RAG），回车搜索" />
+    <button class="btn btn-primary" onclick="load()">刷新</button>
+    <button class="btn" id="fetchBtn" onclick="fetchNow()" style="display:none">📥 立即抓取</button>
+  </div>
+  <div class="hint" id="hint">信源：AI HOT（aihot.virxact.com，已含 AI 评分与降噪）· 摘要由 LLM 生成，采纳后写作前请回原文核实 · 数据覆盖最近 7 天</div>
+
+  <div class="list" id="list"><div class="state">加载中…</div></div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let adoptedMap = {};
+    const adopting = new Set();  // 防止单条目重复点击采纳
+
+    async function load() {
+      const list = document.getElementById('list');
+      list.innerHTML = '<div class="state">加载中…</div>';
+      const source = document.getElementById('fSource').value;
+      document.getElementById('fetchBtn').style.display =
+        source === 'rss' ? '' : 'none';
+      const params = new URLSearchParams({
+        source,
+        hours: document.getElementById('fHours').value,
+        category: document.getElementById('fCategory').value,
+        q: document.getElementById('fQ').value.trim(),
+      });
+      try {
+        const res = await fetch('/api/intel?' + params);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        adoptedMap = data.adopted || {};
+        updateHint(source, data.rss);
+        render(data.items || []);
+      } catch (e) {
+        list.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = 'state';
+        div.innerHTML = '😵 信源暂时不可达（' + e.message +
+          '）<br><button class="btn" onclick="load()">重试</button>';
+        list.appendChild(div);
+      }
+    }
+
+    function render(items) {
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      if (!items.length) {
+        list.innerHTML = '<div class="state">该筛选条件下暂无情报，换个时间窗或关键词试试</div>';
+        return;
+      }
+      items.forEach(it => list.appendChild(card(it)));
+    }
+
+    function card(it) {
+      const el = document.createElement('div');
+      el.className = 'item';
+
+      const head = document.createElement('div');
+      head.className = 'item-head';
+      const score = document.createElement('div');
+      const s = it.score;
+      if (s == null) {
+        score.className = 'score s-low';
+        score.textContent = '–';
+        score.title = '待 AI 评分';
+      } else {
+        score.className = 'score ' + (s >= 85 ? 's-high' : s >= 75 ? 's-mid' : 's-low');
+        score.textContent = s;
+      }
+      head.appendChild(score);
+
+      const main = document.createElement('div');
+      const title = document.createElement('div');
+      title.className = 'item-title';
+      const a = document.createElement('a');
+      a.href = it.url; a.target = '_blank';
+      a.textContent = it.title || it.title_en || '(无标题)';
+      title.appendChild(a);
+      main.appendChild(title);
+
+      const meta = document.createElement('div');
+      meta.className = 'item-meta';
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = catLabel(it.category);
+      meta.appendChild(badge);
+      const src = document.createElement('span');
+      src.textContent = it.source || '';
+      meta.appendChild(src);
+      const time = document.createElement('span');
+      time.textContent = (it.publishedAt || '').replace('T', ' ').slice(0, 16);
+      meta.appendChild(time);
+      main.appendChild(meta);
+      head.appendChild(main);
+      el.appendChild(head);
+
+      if (it.summary) {
+        const sum = document.createElement('div');
+        sum.className = 'summary';
+        sum.textContent = it.summary;
+        el.appendChild(sum);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'item-actions';
+      if (adoptedMap[it.id]) {
+        const done = document.createElement('span');
+        done.className = 'adopted';
+        done.textContent = '✓ 已采纳';
+        actions.appendChild(done);
+        const go = document.createElement('a');
+        go.className = 'link';
+        go.href = '/topics.html';
+        go.textContent = '去选题池查看';
+        actions.appendChild(go);
+      } else {
+        const adopt = document.createElement('a');
+        adopt.className = 'link';
+        adopt.textContent = '➕ 采纳为选题';
+        adopt.onclick = () => adoptItem(it, adopt);
+        actions.appendChild(adopt);
+      }
+      el.appendChild(actions);
+      return el;
+    }
+
+    function updateHint(source, rss) {
+      const hint = document.getElementById('hint');
+      if (source === 'rss') {
+        const last = rss && rss.last_run
+          ? new Date(rss.last_run * 1000).toLocaleTimeString('zh-CN')
+          : '尚未抓取';
+        const running = rss && rss.running ? '（正在抓取…）' : '';
+        const failed = rss ? Object.keys(rss.last_errors || {}) : [];
+        const failNote = failed.length
+          ? ' · ⚠️ ' + failed.length + ' 个源抓取失败：' + failed.join('、')
+          : '';
+        hint.textContent = '信源：我的 RSS（data/sources.json 可增删源）· '
+          + '后台每 30 分钟自动抓取 · 上次抓取：' + last + running
+          + ' · AI 评分由本机 claude（haiku）生成，灰色为待评分' + failNote;
+      } else {
+        hint.textContent = '信源：AI HOT（aihot.virxact.com，已含 AI 评分与降噪）'
+          + '· 摘要由 LLM 生成，采纳后写作前请回原文核实 · 数据覆盖最近 7 天';
+      }
+    }
+
+    async function fetchNow() {
+      const btn = document.getElementById('fetchBtn');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = '抓取中…';
+      try {
+        await fetch('/api/intel/refresh', {method: 'POST',
+          headers: {'Content-Type': 'application/json'}, body: '{}'});
+        showToast('已开始抓取，约 10-30 秒后自动刷新');
+        setTimeout(async () => {
+          await load();
+          btn.disabled = false;
+          btn.textContent = '📥 立即抓取';
+        }, 15000);
+      } catch (e) {
+        showToast('触发失败：' + e.message);
+        btn.disabled = false;
+        btn.textContent = '📥 立即抓取';
+      }
+    }
+
+    function catLabel(c) {
+      return { 'ai-models': '模型发布', 'ai-products': '产品发布',
+               'industry': '行业动态', 'paper': '论文研究',
+               'tip': '技巧观点' }[c] || (c || '未分类');
+    }
+
+    async function adoptItem(it, linkEl) {
+      if (adopting.has(it.id)) return;
+      adopting.add(it.id);
+      linkEl.textContent = '采纳中…';
+      try {
+        const res = await fetch('/api/intel/adopt', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(it),
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        adoptedMap[it.id] = data.topicId;
+        showToast(data.existed ? '该情报之前已采纳过' : '✅ 已加入选题池（待调研）');
+        load();
+      } catch (e) {
+        linkEl.textContent = '➕ 采纳为选题';
+        showToast('采纳失败：' + e.message);
+      } finally {
+        adopting.delete(it.id);
+      }
+    }
+
+    document.getElementById('fQ').addEventListener('keypress', e => {
+      if (e.key === 'Enter') load();
+    });
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    load();
+  </script>
+</body>
+</html>
