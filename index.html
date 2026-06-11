@@ -839,6 +839,13 @@
       }
     }
 
+    function buildClipboardHtml(html) {
+      return '<!DOCTYPE html><html><head><meta charset="utf-8"></head>' +
+        '<body style="margin:0;background:#fff;color:#3f3f3f;">' +
+        html +
+        '</body></html>';
+    }
+
     async function copyToWeChat() {
       try {
         const md = editor.value;
@@ -849,11 +856,31 @@
           finalHtml = inlineStyles(html, allStyles[currentStyle]);
         }
 
-        // Create a temporary element to copy rich text
+        const clipboardHtml = buildClipboardHtml(finalHtml);
         const temp = document.createElement('div');
         temp.innerHTML = finalHtml;
+        temp.style.background = '#fff';
+        temp.style.color = '#3f3f3f';
+        temp.style.fontSize = '16px';
+        temp.style.lineHeight = '1.8';
+
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/html': new Blob([clipboardHtml], { type: 'text/html' }),
+              'text/plain': new Blob([temp.textContent], { type: 'text/plain' })
+            })
+          ]);
+          showToast('已复制到剪贴板！可以直接粘贴到公众号编辑器');
+          return;
+        } catch (clipboardErr) {
+          // Older browsers may not support writing HTML directly.
+        }
+
+        // Fallback: select a white, offscreen copy instead of the dark app UI.
         temp.style.position = 'fixed';
         temp.style.left = '-9999px';
+        temp.style.top = '0';
         document.body.appendChild(temp);
 
         const range = document.createRange();
@@ -866,18 +893,7 @@
           document.execCommand('copy');
           showToast('已复制到剪贴板！可以直接粘贴到公众号编辑器');
         } catch (err) {
-          // Fallback: try clipboard API
-          try {
-            await navigator.clipboard.write([
-              new ClipboardItem({
-                'text/html': new Blob([finalHtml], { type: 'text/html' }),
-                'text/plain': new Blob([temp.textContent], { type: 'text/plain' })
-              })
-            ]);
-            showToast('已复制到剪贴板！可以直接粘贴到公众号编辑器');
-          } catch (clipboardErr) {
-            showToast('复制失败，请手动复制预览内容');
-          }
+          showToast('复制失败，请手动复制预览内容');
         }
 
         selection.removeAllRanges();
