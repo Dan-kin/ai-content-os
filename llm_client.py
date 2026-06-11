@@ -60,7 +60,7 @@ def _run_openai(prompt, cfg, timeout):
     env = cfg['env'] or os.environ
     api_key = cfg['api_key'] or env.get(cfg['api_key_env']) or ''
     if not api_key:
-        raise RuntimeError('缺少 OpenAI API key：请设置 %s 或 data/llm.json'
+        raise RuntimeError('缺少 API key：请设置 %s 或 data/llm.json'
                            % cfg['api_key_env'])
     if not cfg['model']:
         raise RuntimeError('provider=openai 需要配置 model')
@@ -89,15 +89,15 @@ def _run_openai(prompt, cfg, timeout):
             data = json.loads(resp.read().decode('utf-8'))
     except urllib.error.HTTPError as e:
         detail = e.read().decode('utf-8', errors='ignore')[-500:]
-        raise RuntimeError('OpenAI 请求失败: %s' % (detail or e)) from e
+        raise RuntimeError('LLM 请求失败: %s' % (detail or e)) from e
     except urllib.error.URLError as e:
-        raise RuntimeError('OpenAI 网络请求失败: %s' % e) from e
+        raise RuntimeError('LLM 网络请求失败: %s' % e) from e
 
     try:
         text = data['choices'][0]['message']['content']
     except (KeyError, IndexError, TypeError):
-        raise RuntimeError('OpenAI 返回格式不符合预期')
+        raise RuntimeError('LLM 返回格式不符合预期')
     text = llm_config.strip_preamble(text)
     if not text:
-        raise RuntimeError('OpenAI 没有输出')
+        raise RuntimeError('LLM 没有输出')
     return text
