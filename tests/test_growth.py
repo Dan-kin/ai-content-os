@@ -73,7 +73,7 @@ class AnalyzeTest(unittest.TestCase):
 
     def test_analyze_saves_result(self):
         fake = mock.Mock(returncode=0, stdout='高赞内容的共性是…', stderr='')
-        with mock.patch('growth.subprocess.run', return_value=fake):
+        with mock.patch('llm_client.subprocess.run', return_value=fake):
             job_id = growth.start_analyze()
             job = self._wait(job_id)
         self.assertEqual(job['status'], 'done')
@@ -83,7 +83,7 @@ class AnalyzeTest(unittest.TestCase):
 
     def test_analyze_prompt_contains_data(self):
         fake = mock.Mock(returncode=0, stdout='ok', stderr='')
-        with mock.patch('growth.subprocess.run', return_value=fake) as run:
+        with mock.patch('llm_client.subprocess.run', return_value=fake) as run:
             job_id = growth.start_analyze()
             self._wait(job_id)
         prompt = run.call_args[0][0][2]  # claude -p <prompt>
@@ -94,7 +94,7 @@ class AnalyzeTest(unittest.TestCase):
         with open(llm_config.CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump({'write': {'model': 'glm-5.1', 'env': {'A': 'b'}}}, f)
         fake = mock.Mock(returncode=0, stdout='ok', stderr='')
-        with mock.patch('growth.subprocess.run', return_value=fake) as run:
+        with mock.patch('llm_client.subprocess.run', return_value=fake) as run:
             self._wait(growth.start_analyze())
         cmd = run.call_args[0][0]
         self.assertEqual(cmd[cmd.index('--model') + 1], 'glm-5.1')

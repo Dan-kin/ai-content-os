@@ -33,7 +33,7 @@ AI Content OS 把这些环节装进一个本地系统：信息自动抓取打分
 - **写作时自动注入**：按选题标题匹配相关知识（最多 6 条）拼入 Prompt，让 AI 用上你积累的事实、数据和观点
 
 ### ✍️ AI 写作
-- 按篇幅/风格/目标读者组装 Prompt，后台调用本机 `claude` CLI 生成 Markdown 草稿，绝不覆盖已有文件
+- 按篇幅/风格/目标读者组装 Prompt，后台调用可配置 LLM 生成 Markdown 草稿，绝不覆盖已有文件
 - **人设引擎**（persona.html）：账号人设、语气、口头禅、固定开头/结尾、禁忌词，写作时自动生效
 - **模板系统**：文章类型与写作指引可通过 `data/templates.json` 覆盖内置类型或新增自定义类型
 
@@ -48,8 +48,9 @@ AI Content OS 把这些环节装进一个本地系统：信息自动抓取打分
 - 「AI 复盘」自动分析哪类选题表现好、问题出在哪，给出下一步选题建议
 
 ### 🔌 任务级模型路由（data/llm.json）
-- 写作、评分、转换、复盘四类任务**各自指定模型和 Anthropic 兼容网关**（如智谱 GLM、其他中转），互不影响
-- 环境变量只注入对应子进程，不污染你的 claude 交互会话；删掉配置即回退默认登录态
+- 写作、评分、转换、复盘四类任务**各自指定 provider、模型和接口**，互不影响
+- 支持 `openai` / OpenAI-compatible 接口，也保留 `claude` CLI 作为默认回退
+- 环境变量只注入对应任务，不污染你的交互会话；删掉配置即回退默认 Claude 登录态
 - 自动剥离 LLM 输出开头的寒暄语，保证产物干净
 
 ## 安装使用
@@ -59,15 +60,16 @@ AI Content OS 把这些环节装进一个本地系统：信息自动抓取打分
 | 依赖 | 用途 | 必需 |
 |---|---|---|
 | Python 3.10+ | 服务器与全部后端逻辑（仅标准库，无需 pip install） | ✅ |
-| [Claude Code CLI](https://claude.com/claude-code) | AI 写作 / 评分 / 转换 / 复盘 | ✅ |
+| OpenAI API Key 或 Claude Code CLI | AI 写作 / 评分 / 转换 / 复盘 | ✅ |
 | Node.js + npm | 仅「一键发布公众号」需要 | 可选 |
 | Chrome | 浏览器模式发布（无公众号 API 凭据时） | 可选 |
 
 ### 快速启动
 
 ```bash
-git clone https://github.com/LeeFeee/ai-content-os.git
+git clone https://github.com/Dan-kin/ai-content-os.git
 cd ai-content-os
+git switch codex-adapter
 python3 server.py 8899
 ```
 
@@ -79,8 +81,21 @@ python3 server.py 8899
 
 ```bash
 cp data/llm.json.example data/llm.json
-# 编辑填入你的网关密钥；该文件已 gitignore，不会被提交
+# 编辑填入你的模型与密钥配置；该文件已 gitignore，不会被提交
 ```
+
+OpenAI / Codex 推荐配置方式：
+
+```bash
+export OPENAI_API_KEY="你的 OpenAI API Key"
+```
+
+然后在 `data/llm.json` 里把 `write` / `score` / `dist` / `growth`
+的 `provider` 设为 `openai`，并填入各自模型。`score` 可以用便宜快速的模型，
+`write` / `growth` 建议用质量更高的模型。
+
+如果你已经登录 Claude Code CLI，也可以删除 `data/llm.json` 或把某个任务设为
+`provider: "claude"`，系统会回退到本机 `claude -p`。
 
 **2. 一键发布公众号**
 
@@ -114,7 +129,8 @@ ai-content-os/
 ├── dist.py            # 多平台格式转换（知乎/小红书/X）
 ├── wechat_pub.py      # 公众号一键发布（调技能脚本）
 ├── growth.py          # 数据回流 + AI 复盘
-├── llm_config.py      # 任务级模型/网关路由
+├── llm_config.py      # 任务级模型/Provider 配置
+├── llm_client.py      # 统一 LLM 调用层（Claude CLI / OpenAI-compatible）
 ├── *.html             # 无构建单页前端（每页一个模块）
 ├── content/           # 文章产出目录
 ├── data/              # 运行时数据（多为 gitignore）
@@ -138,7 +154,7 @@ ai-content-os/
 
 - [baoyu-skills](https://github.com/JimLiu/baoyu-skills) — 公众号发布能力来自 baoyu-post-to-wechat 技能
 - AI HOT（aihot.virxact.com）— 聚合情报信源
-- [Claude Code](https://claude.com/claude-code) — 本项目的 AI 能力底座，项目本身也由它结对开发完成
+- [Claude Code](https://claude.com/claude-code) — 原项目的 AI 能力底座，当前 fork 保留兼容
 
 ## License
 

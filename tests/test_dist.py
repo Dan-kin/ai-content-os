@@ -59,7 +59,7 @@ class ConvertTest(unittest.TestCase):
 
     def test_convert_writes_output_file(self):
         fake = mock.Mock(returncode=0, stdout='转换后的内容', stderr='')
-        with mock.patch('dist.subprocess.run', return_value=fake):
+        with mock.patch('llm_client.subprocess.run', return_value=fake):
             job_id = dist.start_convert('content/a.md', 'xhs')
             job = self._wait(job_id)
         self.assertEqual(job['status'], 'done')
@@ -73,7 +73,7 @@ class ConvertTest(unittest.TestCase):
         with open(llm_config.CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump(cfg, f)
         fake = mock.Mock(returncode=0, stdout='ok', stderr='')
-        with mock.patch('dist.subprocess.run', return_value=fake) as run:
+        with mock.patch('llm_client.subprocess.run', return_value=fake) as run:
             job_id = dist.start_convert('content/a.md', 'zhihu')
             self._wait(job_id)
         cmd = run.call_args[0][0]
@@ -84,7 +84,7 @@ class ConvertTest(unittest.TestCase):
 
     def test_convert_failure_records_error(self):
         fake = mock.Mock(returncode=1, stdout='', stderr='boom')
-        with mock.patch('dist.subprocess.run', return_value=fake):
+        with mock.patch('llm_client.subprocess.run', return_value=fake):
             job_id = dist.start_convert('content/a.md', 'x')
             job = self._wait(job_id)
         self.assertEqual(job['status'], 'error')

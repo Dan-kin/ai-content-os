@@ -1,17 +1,16 @@
 """数据回流 — 已发布文章表现数据录入 + AI 复盘建议。
 
 Growth Engine 的 MVP 简版：平台数据暂靠手动录入（公众号后台数字抄过来），
-存 data/growth.json；「AI 复盘」把数据交给 claude CLI 生成选题/标题优化
+存 data/growth.json；「AI 复盘」把数据交给可配置 LLM 生成选题/标题优化
 建议。模型接口走 llm.json 的 `growth` 键，回退 `write`，再回退默认登录态。
 """
 import datetime
 import json
 import os
-import subprocess
 import threading
 import time
 
-import llm_config
+import llm_client
 
 DATA_PATH = 'data/growth.json'
 ANALYZE_TIMEOUT = 600
@@ -101,25 +100,10 @@ def start_analyze():
     return job_id
 
 
-def _llm():
-    cfg = llm_config.task_config('growth')
-    if not cfg['model'] and cfg['env'] is None:
-        cfg = llm_config.task_config('write')
-    return cfg
-
-
 def _run(job_id, prompt):
     try:
-        llm = _llm()
-        cmd = ['claude', '-p', prompt]
-        if llm['model']:
-            cmd += ['--model', llm['model']]
-        result = subprocess.run(cmd, capture_output=True, text=True,
-                                timeout=ANALYZE_TIMEOUT, env=llm['env'])
-        text = llm_config.strip_preamble(result.stdout)
-        if result.returncode != 0 or not text:
-            raise RuntimeError(
-                (result.stderr or '').strip()[-500:] or 'claude CLI 没有输出')
+        text = llm_client.generate_text(
+            'growth', prompt, timeout=ANALYZE_TIMEOUT, fallback_task='write')
         with _lock:
             data = _load()
             data['analysis'] = {

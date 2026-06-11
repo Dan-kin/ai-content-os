@@ -8,6 +8,7 @@ from unittest import mock
 
 import ai_writer
 import intel_rss
+import llm_client
 import llm_config
 
 SAMPLE = {
@@ -81,7 +82,7 @@ class WriterUsesConfigTest(unittest.TestCase):
         fake = mock.Mock(returncode=0, stdout='# 文章', stderr='')
         ai_writer._jobs['job1'] = {'status': 'running', 'article': '',
                                    'error': ''}
-        with mock.patch('ai_writer.subprocess.run',
+        with mock.patch('llm_client.subprocess.run',
                         return_value=fake) as run:
             ai_writer._run('job1', 'prompt', os.path.join(self.tmp, 'o.md'))
         cmd = run.call_args[0][0]
@@ -94,7 +95,7 @@ class WriterUsesConfigTest(unittest.TestCase):
         fake = mock.Mock(returncode=0, stdout='# 文章', stderr='')
         ai_writer._jobs['job2'] = {'status': 'running', 'article': '',
                                    'error': ''}
-        with mock.patch('ai_writer.subprocess.run',
+        with mock.patch('llm_client.subprocess.run',
                         return_value=fake) as run:
             ai_writer._run('job2', 'prompt', os.path.join(self.tmp, 'o.md'))
         cmd = run.call_args[0][0]
@@ -120,7 +121,7 @@ class ScoreUsesConfigTest(unittest.TestCase):
         with open(llm_config.CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump(SAMPLE, f)
         fake = mock.Mock(returncode=0, stdout='[88]', stderr='')
-        with mock.patch('intel_rss.subprocess.run',
+        with mock.patch('llm_client.subprocess.run',
                         return_value=fake) as run:
             intel_rss.score_pending(model='haiku')
         cmd = run.call_args[0][0]
@@ -130,7 +131,7 @@ class ScoreUsesConfigTest(unittest.TestCase):
 
     def test_score_falls_back_to_score_model(self):
         fake = mock.Mock(returncode=0, stdout='[88]', stderr='')
-        with mock.patch('intel_rss.subprocess.run',
+        with mock.patch('llm_client.subprocess.run',
                         return_value=fake) as run:
             intel_rss.score_pending(model='haiku')
         cmd = run.call_args[0][0]

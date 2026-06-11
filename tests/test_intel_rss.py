@@ -149,7 +149,7 @@ class ScoreTest(TmpDirTest):
     def test_score_pending_assigns_scores(self):
         self._seed_items()
         fake = mock.Mock(returncode=0, stdout='[88, 62]', stderr='')
-        with mock.patch('intel_rss.subprocess.run', return_value=fake):
+        with mock.patch('llm_client.subprocess.run', return_value=fake):
             n = intel_rss.score_pending(model='haiku')
         self.assertEqual(n, 2)
         items = intel_rss.get_items()
@@ -159,7 +159,7 @@ class ScoreTest(TmpDirTest):
     def test_score_pending_tolerates_bad_output(self):
         self._seed_items()
         fake = mock.Mock(returncode=0, stdout='抱歉我没法打分', stderr='')
-        with mock.patch('intel_rss.subprocess.run', return_value=fake):
+        with mock.patch('llm_client.subprocess.run', return_value=fake):
             n = intel_rss.score_pending()
         self.assertEqual(n, 0)
         self.assertTrue(all(it['score'] is None

@@ -71,7 +71,7 @@ class GenerateTest(ApiTest):
         tid = created['topic']['id']
 
         fake = mock.Mock(returncode=0, stdout='# 生成的文章\n\n内容', stderr='')
-        with mock.patch('ai_writer.subprocess.run', return_value=fake):
+        with mock.patch('llm_client.subprocess.run', return_value=fake):
             res = self._post('/api/generate', {'id': tid, 'length': '1000'})
             job_id = res['job']
             for _ in range(50):

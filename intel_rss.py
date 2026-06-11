@@ -1,7 +1,7 @@
 """自建 RSS 信源 — 多源抓取、本地入库、AI 评分。
 
 与 AI HOT 信源互补：源列表完全自主可配（data/sources.json，种子来自
-AI-Daily 技能的源清单），条目本地滚动保存 7 天，可选用 claude CLI
+AI-Daily 技能的源清单），条目本地滚动保存 7 天，可选用 LLM
 批量打分（默认 haiku 模型控制成本）。
 
 实时性说明：RSS 生态没有推送机制，"实时"即轮询。server.py 启动后台
@@ -14,12 +14,11 @@ import hashlib
 import json
 import os
 import re
-import subprocess
 import threading
 import time
 import urllib.request
 
-import llm_config
+import llm_client
 import xml.etree.ElementTree as ET
 
 SOURCES_PATH = 'data/sources.json'
@@ -276,13 +275,10 @@ def status():
 # ---------- AI 评分 ----------
 
 def score_pending(model='haiku'):
-    """用 claude CLI 给未评分条目批量打分（0-100）。返回成功评分条数。
+    """用可配置 LLM 给未评分条目批量打分（0-100）。返回成功评分条数。
 
     模型优先级：data/llm.json 的 score.model > sources.json 的 score_model。
     """
-    llm = llm_config.task_config('score')
-    if llm['model']:
-        model = llm['model']
     items = _read_items()
     pending = [it for it in items.values() if it.get('score') is None]
     scored = 0
@@ -298,13 +294,10 @@ def score_pending(model='haiku'):
             '只输出一个 JSON 数组（长度 %d，与条目顺序一一对应），'
             '例如 [82,55]，不要输出任何其他文字。\n\n%s'
             % (len(batch), listing))
-        cmd = ['claude', '-p', prompt]
-        if model:
-            cmd += ['--model', model]
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True,
-                                    timeout=300, env=llm['env'])
-            m = re.search(r'\[[\d,\s]*\]', result.stdout or '')
+            text = llm_client.generate_text(
+                'score', prompt, timeout=300, default_model=model)
+            m = re.search(r'\[[\d,\s]*\]', text or '')
             scores = json.loads(m.group(0)) if m else []
         except Exception:
             scores = []

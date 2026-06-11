@@ -1,15 +1,14 @@
 """多平台格式适配 — 公众号文章一键转知乎 / 小红书 / X 版本。
 
-Content Ops 的 MVP 简版：claude CLI 后台转换，输出到 content/
+Content Ops 的 MVP 简版：可配置 LLM 后台转换，输出到 content/
 同名加平台后缀的新文件（绝不覆盖）。模型与接口走 data/llm.json 的
 `dist` 任务键，缺省回退 `write` 配置，再回退默认登录态。
 """
 import os
-import subprocess
 import threading
 import time
 
-import llm_config
+import llm_client
 
 CONVERT_TIMEOUT = 600
 
@@ -82,26 +81,10 @@ def start_convert(md_path, platform):
     return job_id
 
 
-def _llm():
-    """dist 任务配置；没配则回退 write（通常分发和写作用同一套）。"""
-    cfg = llm_config.task_config('dist')
-    if not cfg['model'] and cfg['env'] is None:
-        cfg = llm_config.task_config('write')
-    return cfg
-
-
 def _run(job_id, prompt, out_path):
     try:
-        llm = _llm()
-        cmd = ['claude', '-p', prompt]
-        if llm['model']:
-            cmd += ['--model', llm['model']]
-        result = subprocess.run(cmd, capture_output=True, text=True,
-                                timeout=CONVERT_TIMEOUT, env=llm['env'])
-        text = llm_config.strip_preamble(result.stdout)
-        if result.returncode != 0 or not text:
-            raise RuntimeError(
-                (result.stderr or '').strip()[-500:] or 'claude CLI 没有输出')
+        text = llm_client.generate_text(
+            'dist', prompt, timeout=CONVERT_TIMEOUT, fallback_task='write')
         with open(out_path, 'w', encoding='utf-8') as f:
             f.write(text + '\n')
         with _jobs_lock:

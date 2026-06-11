@@ -1,17 +1,27 @@
 {
-  "_说明": "复制本文件为 data/llm.json 并填入你的凭据即可启用任务级模型/接口覆盖。llm.json 已在 .gitignore 中，不会被提交。删除某个任务键即回退到 claude CLI 默认登录态。任务键：write=AI写作, score=RSS评分, dist=多平台转换(缺省回退write), growth=AI复盘(缺省回退write)",
+  "_说明": "复制本文件为 data/llm.json 并填入你的凭据即可启用任务级模型/接口覆盖。llm.json 已在 .gitignore 中，不会被提交。删除某个任务键即回退到 claude CLI 默认登录态。任务键：write=AI写作, score=RSS评分, dist=多平台转换(缺省回退write), growth=AI复盘(缺省回退write)。provider 支持 claude / openai / command。",
   "write": {
-    "model": "glm-5.1",
-    "env": {
-      "ANTHROPIC_AUTH_TOKEN": "你的网关密钥",
-      "ANTHROPIC_BASE_URL": "https://open.bigmodel.cn/api/anthropic"
-    }
+    "provider": "openai",
+    "model": "填写你要使用的 OpenAI 模型",
+    "base_url": "https://api.openai.com/v1",
+    "api_key_env": "OPENAI_API_KEY"
   },
   "score": {
-    "model": "glm-5-turbo",
-    "env": {
-      "ANTHROPIC_AUTH_TOKEN": "你的网关密钥",
-      "ANTHROPIC_BASE_URL": "https://open.bigmodel.cn/api/anthropic"
-    }
+    "provider": "openai",
+    "model": "填写一个便宜快速的模型",
+    "base_url": "https://api.openai.com/v1",
+    "api_key_env": "OPENAI_API_KEY"
+  },
+  "dist": {
+    "provider": "openai",
+    "model": "填写你要使用的 OpenAI 模型",
+    "base_url": "https://api.openai.com/v1",
+    "api_key_env": "OPENAI_API_KEY"
+  },
+  "growth": {
+    "provider": "openai",
+    "model": "填写你要使用的 OpenAI 模型",
+    "base_url": "https://api.openai.com/v1",
+    "api_key_env": "OPENAI_API_KEY"
   }
 }

@@ -38,12 +38,12 @@ def build_command(path, html=False, title=''):
     html=True 时 path 是编辑器渲染好的带行内样式 HTML（所见即所得，
     保留用户自选风格）；否则是 Markdown，由技能用自带主题渲染。
     """
+    if not os.path.isfile(path):
+        raise RuntimeError('文章文件不存在: %s' % path)
     if not os.path.isdir(SKILL_DIR):
         raise RuntimeError(
             '未找到 baoyu-post-to-wechat 技能（%s），请先安装该技能'
             % SKILL_DIR)
-    if not os.path.isfile(path):
-        raise RuntimeError('文章文件不存在: %s' % path)
     if _has_api_creds():
         script = os.path.join(SKILL_DIR, 'scripts', 'wechat-api.ts')
         cmd = ['npx', '-y', 'bun', script, path]

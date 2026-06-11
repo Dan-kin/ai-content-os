@@ -88,7 +88,7 @@ class JobTest(unittest.TestCase):
     def test_job_success_writes_file(self):
         topic = {'id': 't1', 'title': '任务测试', 'type': '教程'}
         fake = mock.Mock(returncode=0, stdout='# 标题\n\n正文', stderr='')
-        with mock.patch('ai_writer.subprocess.run', return_value=fake):
+        with mock.patch('llm_client.subprocess.run', return_value=fake):
             job_id, out_path = ai_writer.start_job(topic, {})
             job = self._wait(job_id)
         self.assertEqual(job['status'], 'done')
@@ -98,7 +98,7 @@ class JobTest(unittest.TestCase):
     def test_job_failure_records_error(self):
         topic = {'id': 't2', 'title': '失败测试', 'type': '教程'}
         fake = mock.Mock(returncode=1, stdout='', stderr='boom')
-        with mock.patch('ai_writer.subprocess.run', return_value=fake):
+        with mock.patch('llm_client.subprocess.run', return_value=fake):
             job_id, _ = ai_writer.start_job(topic, {})
             job = self._wait(job_id)
         self.assertEqual(job['status'], 'error')
@@ -111,7 +111,7 @@ class JobTest(unittest.TestCase):
         calls = []
         topic = {'id': 't3', 'title': '回调测试', 'type': '教程'}
         fake = mock.Mock(returncode=0, stdout='# ok', stderr='')
-        with mock.patch('ai_writer.subprocess.run', return_value=fake):
+        with mock.patch('llm_client.subprocess.run', return_value=fake):
             job_id, _ = ai_writer.start_job(
                 topic, {}, on_finish=lambda s, e: calls.append((s, e)))
             self._wait(job_id)
@@ -121,7 +121,7 @@ class JobTest(unittest.TestCase):
         calls = []
         topic = {'id': 't4', 'title': '回调失败测试', 'type': '教程'}
         fake = mock.Mock(returncode=1, stdout='', stderr='boom')
-        with mock.patch('ai_writer.subprocess.run', return_value=fake):
+        with mock.patch('llm_client.subprocess.run', return_value=fake):
             job_id, _ = ai_writer.start_job(
                 topic, {}, on_finish=lambda s, e: calls.append((s, e)))
             self._wait(job_id)

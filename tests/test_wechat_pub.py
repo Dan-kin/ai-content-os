@@ -13,10 +13,15 @@ class CommandTest(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.old_cwd = os.getcwd()
         os.chdir(self.tmp)
+        self.skill_dir = os.path.join(self.tmp, 'baoyu-post-to-wechat')
+        os.makedirs(os.path.join(self.skill_dir, 'scripts'), exist_ok=True)
+        self.skill_patch = mock.patch('wechat_pub.SKILL_DIR', self.skill_dir)
+        self.skill_patch.start()
         with open('a.md', 'w', encoding='utf-8') as f:
             f.write('# T\n\n正文')
 
     def tearDown(self):
+        self.skill_patch.stop()
         os.chdir(self.old_cwd)
         shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -75,10 +80,15 @@ class JobTest(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.old_cwd = os.getcwd()
         os.chdir(self.tmp)
+        self.skill_dir = os.path.join(self.tmp, 'baoyu-post-to-wechat')
+        os.makedirs(os.path.join(self.skill_dir, 'scripts'), exist_ok=True)
+        self.skill_patch = mock.patch('wechat_pub.SKILL_DIR', self.skill_dir)
+        self.skill_patch.start()
         with open('a.md', 'w', encoding='utf-8') as f:
             f.write('# T\n\n正文')
 
     def tearDown(self):
+        self.skill_patch.stop()
         os.chdir(self.old_cwd)
         shutil.rmtree(self.tmp, ignore_errors=True)
 

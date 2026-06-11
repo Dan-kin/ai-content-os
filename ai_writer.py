@@ -1,13 +1,12 @@
-"""AI 写作模块 — Prompt 组装 + 调用本机 claude CLI 后台生成文章。"""
+"""AI 写作模块 — Prompt 组装 + 调用可配置 LLM 后台生成文章。"""
 import json
 import os
 import re
-import subprocess
 import threading
 import time
 
 import knowledge
-import llm_config
+import llm_client
 import persona as persona_module
 
 TYPE_GUIDES = {
@@ -101,7 +100,7 @@ def unique_path(title):
 _jobs = {}
 _jobs_lock = threading.Lock()
 
-CLAUDE_TIMEOUT = 1200  # 秒；长文生成可能需要数分钟
+WRITE_TIMEOUT = 1200  # 秒；长文生成可能需要数分钟
 
 
 def start_job(topic, params, on_finish=None):
@@ -129,15 +128,7 @@ def start_job(topic, params, on_finish=None):
 def _run(job_id, prompt, out_path, on_finish=None):
     status, error = 'done', ''
     try:
-        llm = llm_config.task_config('write')
-        cmd = ['claude', '-p', prompt]
-        if llm['model']:
-            cmd += ['--model', llm['model']]
-        result = subprocess.run(cmd, capture_output=True, text=True,
-                                timeout=CLAUDE_TIMEOUT, env=llm['env'])
-        text = llm_config.strip_preamble(result.stdout)
-        if result.returncode != 0 or not text:
-            raise RuntimeError(result.stderr.strip() or 'claude CLI 没有输出')
+        text = llm_client.generate_text('write', prompt, timeout=WRITE_TIMEOUT)
         with open(out_path, 'w', encoding='utf-8') as f:
             f.write(text + '\n')
         with _jobs_lock:
