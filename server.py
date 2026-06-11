@@ -25,6 +25,7 @@ import intel
 import intel_rss
 import knowledge
 import persona
+import rewriter
 import store
 import wechat_pub
 
@@ -163,6 +164,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         elif parsed.path == '/api/dist/status':
             job_id = (qs.get('job') or [None])[0]
             job = dist.get_job(job_id) if job_id else None
+            if job is None:
+                self.send_error(404, "Job not found")
+                return
+            self._json_response(job)
+
+        elif parsed.path == '/api/rewrite/status':
+            job_id = (qs.get('job') or [None])[0]
+            job = rewriter.get_job(job_id) if job_id else None
             if job is None:
                 self.send_error(404, "Job not found")
                 return
@@ -402,6 +411,28 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     return
                 self._json_response({'success': True, 'job': job_id,
                                      'output': dist.get_job(job_id)['output']})
+            except Exception as e:
+                self.send_error(500, str(e))
+
+        elif parsed.path == '/api/rewrite':
+            try:
+                data = self._read_json()
+                path = (data.get('file') or '').strip()
+                if not path.startswith('content/') or '..' in path:
+                    self.send_error(400, 'file must be within content/')
+                    return
+                modes = data.get('modes') or []
+                if not isinstance(modes, list):
+                    modes = []
+                instructions = data.get('instructions') or ''
+                try:
+                    job_id = rewriter.start_rewrite(
+                        path, modes=modes, instructions=instructions)
+                except RuntimeError as e:
+                    self._json_response({'success': False, 'error': str(e)})
+                    return
+                self._json_response({'success': True, 'job': job_id,
+                                     'output': rewriter.get_job(job_id)['output']})
             except Exception as e:
                 self.send_error(500, str(e))
 
