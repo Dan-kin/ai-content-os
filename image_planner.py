@@ -123,6 +123,14 @@ def render_prompt_pack(source_path, plan):
         lines += [
             '## %s' % image['id'],
             '',
+            '### 直接复制给出图 AI',
+            '',
+            '```text',
+            _copy_prompt(image),
+            '```',
+            '',
+            '### 说明字段',
+            '',
             '- 类型：%s' % image['type'],
             '- 推荐比例：%s' % image['aspect_ratio'],
             '- 插入位置：%s' % (image.get('insert_after_heading') or '封面/文章开头'),
@@ -146,6 +154,25 @@ def render_prompt_pack(source_path, plan):
             '',
         ]
     return '\n'.join(lines).rstrip() + '\n'
+
+
+def _copy_prompt(image):
+    return '\n'.join([
+        '请根据下面要求生成一张公众号配图。',
+        '',
+        '图片比例：%s' % image['aspect_ratio'],
+        '用途：%s' % image['purpose'],
+        '',
+        '画面要求：',
+        image['cn_prompt'],
+        '',
+        '构图补充：',
+        image['composition'],
+        '',
+        '避免：%s' % image['negative_prompt'],
+        '',
+        '额外要求：画面真实、克制、清晰，适合微信公众号深度文章；不要出现文字、logo、水印。'
+    ])
 
 
 def insert_placeholders(md_text, plan, prompt_pack_path, source_path=None):
